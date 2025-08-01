@@ -1252,15 +1252,6 @@ function createTweetEmbedElement(tweetId) {
 
         allImagesOnPage.forEach(img => {
             img.style.filter = isBlurred ? `blur(${blurAmount}px)` : 'none';
-            const wrapper = img.closest('.image-wrapper');
-            if (wrapper) {
-                const blurIcon = wrapper.querySelector('.blur-icon');
-                if (isBlurred) {
-                    if (blurIcon) blurIcon.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
-                } else {
-                    if (blurIcon) blurIcon.style.backgroundColor = 'transparent';
-                }
-            }
         });
         consoleLog(`Toggled blur for ${filehash}. Now blurred: ${isBlurred}`);
     }
@@ -1868,17 +1859,26 @@ function _populateAttachmentDivWithMedia(
         img.dataset.fullSrc = webFullSrc;
         img.dataset.thumbSrc = webThumbSrc;
 
-        const setImageProperties = (isThumbnail) => {
-            if (isThumbnail) {
+        const setImageProperties = (mode) => {
+            img.dataset.mode = mode;
+            if (mode === 'thumb') {
                 img.src = img.dataset.thumbSrc;
                 img.style.width = message.attachment.tn_w + 'px';
                 img.style.height = message.attachment.tn_h + 'px';
-                img.style.maxWidth = ''; img.style.maxHeight = '';
-            } else {
+                img.style.maxWidth = '';
+                img.style.maxHeight = '';
+            } else if (mode === 'full') {
                 img.src = img.dataset.fullSrc;
                 img.style.maxWidth = '85%';
                 img.style.maxHeight = (layoutStyle === 'new_design' || isTopLevelMessage) ? '400px' : '350px';
-                img.style.width = 'auto'; img.style.height = 'auto';
+                img.style.width = 'auto';
+                img.style.height = 'auto';
+            } else { // 'original'
+                img.src = img.dataset.fullSrc;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = 'none';
+                img.style.width = 'auto';
+                img.style.height = 'auto';
             }
         };
 
@@ -1893,7 +1893,7 @@ function _populateAttachmentDivWithMedia(
             if (message.attachment.localStoreId && otkMediaDB) {
                 const transaction = otkMediaDB.transaction(['mediaStore'], 'readonly');
                 const store = transaction.objectStore('mediaStore');
-                const request = store.get(defaultToThumbnail ? message.attachment.localThumbStoreId : message.attachment.localStoreId);
+                const request = store.get(img.dataset.mode === 'thumb' ? message.attachment.localThumbStoreId : message.attachment.localStoreId);
                 request.onsuccess = (event) => {
                     const storedItem = event.target.result;
                     if (storedItem && storedItem.blob) {
@@ -1905,13 +1905,16 @@ function _populateAttachmentDivWithMedia(
             }
         };
 
-        setImageProperties(defaultToThumbnail);
+        setImageProperties(defaultToThumbnail ? 'thumb' : 'full');
         uniqueImageViewerHashes.add(filehash);
 
         img.addEventListener('click', () => {
-            const currentlyThumbnail = img.dataset.isThumbnail === 'true';
-            img.dataset.isThumbnail = currentlyThumbnail ? 'false' : 'true';
-            setImageProperties(!currentlyThumbnail);
+            const currentMode = img.dataset.mode;
+            if (currentMode === 'thumb') {
+                setImageProperties('full');
+            } else {
+                setImageProperties('thumb');
+            }
         });
 
         const imageWrapper = document.createElement('div');
@@ -1929,7 +1932,7 @@ function _populateAttachmentDivWithMedia(
             left: 5px;
             width: 24px;
             height: 24px;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: var(--otk-blur-icon-bg-color, #d9d9d9);
             border-radius: 50%;
             cursor: pointer;
             display: none;
@@ -1937,7 +1940,7 @@ function _populateAttachmentDivWithMedia(
             justify-content: center;
             z-index: 10;
         `;
-        blurIcon.style.backgroundImage = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNy45NCAxNy45NEExMC45NCAxMC45NCAwIDAgMSAxMiAxOS41QzcgMTkuNSAyLjczIDE1Ljg5IDEgMTJhMTMuMDggMTMuMDggMCAwIDEgMy4wNi00LjI2Ii8+PHBhdGggZD0iTTEwLjU4IDEwLjU4YTMgMyAwIDAgMCA0LjI0IDQuMjQiLz48cGF0aCBkPSJNMjMgMUwxIDIzIi8+PHBhdGggZD0iTkuODggNS40N0ExMC45NCAxMC45NCAwIDAgMSAxMiA0LjVjNSAwIDkuMjcgMy42MSAxMSA3LjVhMTMuMDggMTMuMDggMCAwIDEtNC4xNyA1LjE5Ii8+PC9zdmc+")`;
+        blurIcon.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="${getComputedStyle(document.documentElement).getPropertyValue('--otk-blur-icon-color').trim() || '#000000'}"><path d="m644-428-58-59q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"/></svg>')`;
         blurIcon.style.backgroundSize = '16px';
         blurIcon.style.backgroundRepeat = 'no-repeat';
         blurIcon.style.backgroundPosition = 'center';
@@ -1947,11 +1950,6 @@ function _populateAttachmentDivWithMedia(
             e.stopPropagation(); // Prevent image click-to-zoom
             e.preventDefault();
             toggleImageBlur(filehash);
-            if (blurredImages.has(filehash)) {
-                blurIcon.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
-            } else {
-                blurIcon.style.backgroundColor = 'transparent';
-            }
         });
 
         // Create the resize icon
@@ -1962,7 +1960,7 @@ function _populateAttachmentDivWithMedia(
             left: 34px;
             width: 24px;
             height: 24px;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: var(--otk-resize-icon-bg-color, #d9d9d9);
             border-radius: 50%;
             cursor: pointer;
             display: none;
@@ -1971,7 +1969,7 @@ function _populateAttachmentDivWithMedia(
             z-index: 10;
             background-size: 16px;
         `;
-        resizeIcon.style.backgroundImage = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZjgwNDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSIxNiA0IDIwIDQgMjAgOCIvPjxsaW5lIHgxPSIyMCIgeTE9IjQiIHgyPSIxNCIgeTI9IjEwIi8+PHBvbHlsaW5lIHBvaW50cz0iOCAyMCA0IDIwIDQgMTYiLz48bGluZSB4MT0iNCIgeTE9IjIwIiB4Mj0iMTAiIHkyPSIxNCIvPjwvc3ZnPg==")`;
+        resizeIcon.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--otk-resize-icon-color').trim() || '#000000'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 4 20 4 20 8"></polyline><line x1="20" y1="4" x2="14" y2="10"></line><polyline points="8 20 4 20 4 16"></polyline><line x1="4" y1="20" x2="10" y2="14"></line></svg>')`;
         resizeIcon.style.backgroundRepeat = 'no-repeat';
         resizeIcon.style.backgroundPosition = 'center';
         resizeIcon.title = 'Toggle full size';
@@ -1979,8 +1977,14 @@ function _populateAttachmentDivWithMedia(
         resizeIcon.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            // Reuse the existing image click logic to toggle size
-            img.click();
+            const currentMode = img.dataset.mode;
+            if (currentMode === 'original') {
+                const previousMode = img.dataset.previousMode || (defaultToThumbnail ? 'thumb' : 'full');
+                setImageProperties(previousMode);
+            } else {
+                img.dataset.previousMode = currentMode;
+                setImageProperties('original');
+            }
         });
 
         imageWrapper.addEventListener('mouseenter', () => {
@@ -2103,14 +2107,20 @@ function _populateAttachmentDivWithMedia(
         const displayFilenamesKey = `otkMsgDepth${depthKeyPart}DisplayMediaFilename`;
 
         // Default for disableUnderline is false (meaning, underline is ON by default)
-        const shouldDisableUnderline = allThemeSettings[disableUnderlineKey] === true;
+        let shouldDisableUnderline;
+        if (allThemeSettings.hasOwnProperty(disableUnderlineKey)) {
+            shouldDisableUnderline = allThemeSettings[disableUnderlineKey];
+        } else {
+            // New default logic: Hide for depth 1 and 2+
+            shouldDisableUnderline = (depthKeyPart === '1' || depthKeyPart === '2plus');
+        }
 
         // Default for displayFilenames is true (meaning, filenames are SHOWN by default)
         let shouldDisplayFilenames;
         if (allThemeSettings.hasOwnProperty(displayFilenamesKey)) {
             shouldDisplayFilenames = allThemeSettings[displayFilenamesKey];
         } else {
-            shouldDisplayFilenames = true; // Default value
+            shouldDisplayFilenames = false; // New default: OFF for all depths
         }
 
         // --- Define all media patterns once at the top of the function ---
@@ -4937,6 +4947,9 @@ function saveThemeSetting(key, value, requiresRerender = false) {
         }
         localStorage.setItem(THEME_SETTINGS_KEY, JSON.stringify(settings));
         consoleLog("Saved theme setting:", key, value);
+        if (key.startsWith('otkMsgDepth')) {
+             forceViewerRerenderAfterThemeChange();
+        }
     }
 }
 
@@ -5127,6 +5140,24 @@ function applyThemeSettings() {
     if (settings.anchorHighlightBorderColor) {
         document.documentElement.style.setProperty('--otk-anchor-highlight-border-color', settings.anchorHighlightBorderColor);
         updateColorInputs('anchor-border', settings.anchorHighlightBorderColor);
+    }
+
+    // Icon Colors
+    if (settings.resizeIconColor) {
+        document.documentElement.style.setProperty('--otk-resize-icon-color', settings.resizeIconColor);
+        updateColorInputs('resize-icon', settings.resizeIconColor);
+    }
+    if (settings.resizeIconBgColor) {
+        document.documentElement.style.setProperty('--otk-resize-icon-bg-color', settings.resizeIconBgColor);
+        updateColorInputs('resize-icon-bg', settings.resizeIconBgColor);
+    }
+    if (settings.blurIconColor) {
+        document.documentElement.style.setProperty('--otk-blur-icon-color', settings.blurIconColor);
+        updateColorInputs('blur-icon', settings.blurIconColor);
+    }
+    if (settings.blurIconBgColor) {
+        document.documentElement.style.setProperty('--otk-blur-icon-bg-color', settings.blurIconBgColor);
+        updateColorInputs('blur-icon-bg', settings.blurIconBgColor);
     }
 
     // GUI Button Colors
@@ -5855,7 +5886,7 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Thread Titles Text:", storageKey: 'guiThreadListTitleColor', cssVariable: '--otk-gui-threadlist-title-color', defaultValue: '#e0e0e0', inputType: 'color', idSuffix: 'threadlist-title' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Thread Times Text:", storageKey: 'guiThreadListTimeColor', cssVariable: '--otk-gui-threadlist-time-color', defaultValue: '#aaa', inputType: 'color', idSuffix: 'threadlist-time' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Stats Text:", storageKey: 'actualStatsTextColor', cssVariable: '--otk-stats-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'actual-stats-text' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background Updates Stats Text:", storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'background-updates-stats-text' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background Updates Stats Text:", storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'background-updates-stats-text' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Cog Icon:", storageKey: 'cogIconColor', cssVariable: '--otk-cog-icon-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'cog-icon' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Disable Background Update Text:", storageKey: 'disableBgFontColor', cssVariable: '--otk-disable-bg-font-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'disable-bg-font' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Countdown Timer Text:", storageKey: 'countdownTextColor', cssVariable: '--otk-countdown-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-text' }));
@@ -5949,13 +5980,19 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(layoutDropdownGroup); // Appended first in Viewer section
 
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background:", storageKey: 'viewerBgColor', cssVariable: '--otk-viewer-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'viewer-bg' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "GUI Bottom Border:", storageKey: 'guiBottomBorderColor', cssVariable: '--otk-gui-bottom-border-color', defaultValue: '#555', inputType: 'color', idSuffix: 'gui-bottom-border' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "GUI Bottom Border:", storageKey: 'guiBottomBorderColor', cssVariable: '--otk-gui-bottom-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'gui-bottom-border' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "New Messages Divider:", storageKey: 'newMessagesDividerColor', cssVariable: '--otk-new-messages-divider-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'new-msg-divider' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "New Messages Text:", storageKey: 'newMessagesFontColor', cssVariable: '--otk-new-messages-font-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'new-msg-font' }));
 
     // Anchor Highlight Colors
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Anchor Highlight Background:", storageKey: 'anchorHighlightBgColor', cssVariable: '--otk-anchor-highlight-bg-color', defaultValue: '#4a4a3a', inputType: 'color', idSuffix: 'anchor-bg', requiresRerender: true }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Anchor Highlight Border:", storageKey: 'anchorHighlightBorderColor', cssVariable: '--otk-anchor-highlight-border-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'anchor-border', requiresRerender: true }));
+
+    // Icon Colors
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Blur Icon Color:", storageKey: 'blurIconColor', cssVariable: '--otk-blur-icon-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'blur-icon' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Blur Icon Background:", storageKey: 'blurIconBgColor', cssVariable: '--otk-blur-icon-bg-color', defaultValue: '#d9d9d9', inputType: 'color', idSuffix: 'blur-icon-bg' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Resize Icon Color:", storageKey: 'resizeIconColor', cssVariable: '--otk-resize-icon-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'resize-icon' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Resize Icon Background:", storageKey: 'resizeIconBgColor', cssVariable: '--otk-resize-icon-bg-color', defaultValue: '#d9d9d9', inputType: 'color', idSuffix: 'resize-icon-bg' }));
 
     const imageBlurSectionHeading = createSectionHeading('Image Blurring');
     imageBlurSectionHeading.style.marginTop = "22px";
@@ -6188,8 +6225,8 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Content Font:", storageKey: 'msgDepth0TextColor', cssVariable: '--otk-msg-depth0-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth0-text', requiresRerender: true })); // Default for original theme, new theme uses #333
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Header Font:", storageKey: 'msgDepth0HeaderTextColor', cssVariable: '--otk-msg-depth0-header-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth0-header-text', requiresRerender: true })); // Default for original theme, new theme uses #555
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Header Underline:", storageKey: 'viewerHeaderBorderColor', cssVariable: '--otk-viewer-header-border-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-header-border', requiresRerender: true }));
-    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Hide Message Underline:", storageKey: 'otkMsgDepth0DisableHeaderUnderline', defaultValue: false, idSuffix: 'msg-depth0-disable-header-underline', requiresRerender: true }));
-    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Show Media Filenames:", storageKey: 'otkMsgDepth0DisplayMediaFilename', defaultValue: true, idSuffix: 'msg-depth0-display-media-filename', requiresRerender: true }));
+    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Hide Message Underline:", storageKey: 'otkMsgDepth0DisableHeaderUnderline', defaultValue: false, idSuffix: 'msg-depth0-disable-header-underline', requiresRerender: false }));
+    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Show Media Filenames:", storageKey: 'otkMsgDepth0DisplayMediaFilename', defaultValue: false, idSuffix: 'msg-depth0-display-media-filename', requiresRerender: false }));
 
     // --- Depth 1 Messages Section ---
     const depth1MessagesHeading = createSectionHeading('Depth 1 Messages');
@@ -6201,8 +6238,8 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Content Font:", storageKey: 'msgDepth1TextColor', cssVariable: '--otk-msg-depth1-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth1-text', requiresRerender: true })); // Default for original theme
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Header Font:", storageKey: 'msgDepth1HeaderTextColor', cssVariable: '--otk-msg-depth1-header-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth1-header-text', requiresRerender: true })); // Default for original theme
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Header Underline:", storageKey: 'viewerQuote1HeaderBorderColor', cssVariable: '--otk-viewer-quote1-header-border-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-quote1-border', requiresRerender: true }));
-    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Hide Message Underline:", storageKey: 'otkMsgDepth1DisableHeaderUnderline', defaultValue: false, idSuffix: 'msg-depth1-disable-header-underline', requiresRerender: true }));
-    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Show Media Filenames:", storageKey: 'otkMsgDepth1DisplayMediaFilename', defaultValue: true, idSuffix: 'msg-depth1-display-media-filename', requiresRerender: true }));
+    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Hide Message Underline:", storageKey: 'otkMsgDepth1DisableHeaderUnderline', defaultValue: true, idSuffix: 'msg-depth1-disable-header-underline', requiresRerender: false }));
+    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Show Media Filenames:", storageKey: 'otkMsgDepth1DisplayMediaFilename', defaultValue: false, idSuffix: 'msg-depth1-display-media-filename', requiresRerender: false }));
 
     // --- Depth 2+ Messages Section ---
     const depth2plusMessagesHeading = createSectionHeading('Depth 2+ Messages');
@@ -6214,8 +6251,8 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Content Font:", storageKey: 'msgDepth2plusTextColor', cssVariable: '--otk-msg-depth2plus-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth2plus-text', requiresRerender: true })); // Default for original theme
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Header Font:", storageKey: 'msgDepth2plusHeaderTextColor', cssVariable: '--otk-msg-depth2plus-header-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth2plus-header-text', requiresRerender: true })); // Default for original theme
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Header Underline:", storageKey: 'viewerQuote2plusHeaderBorderColor', cssVariable: '--otk-viewer-quote2plus-header-border-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-quote2plus-border', requiresRerender: true }));
-    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Hide Message Underline:", storageKey: 'otkMsgDepth2plusDisableHeaderUnderline', defaultValue: false, idSuffix: 'msg-depth2plus-disable-header-underline', requiresRerender: true }));
-    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Show Media Filenames:", storageKey: 'otkMsgDepth2plusDisplayMediaFilename', defaultValue: true, idSuffix: 'msg-depth2plus-display-media-filename', requiresRerender: true }));
+    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Hide Message Underline:", storageKey: 'otkMsgDepth2plusDisableHeaderUnderline', defaultValue: true, idSuffix: 'msg-depth2plus-disable-header-underline', requiresRerender: false }));
+    themeOptionsContainer.appendChild(createCheckboxOptionRow({ labelText: "Show Media Filenames:", storageKey: 'otkMsgDepth2plusDisplayMediaFilename', defaultValue: false, idSuffix: 'msg-depth2plus-display-media-filename', requiresRerender: false }));
 
     // --- Options Panel Section ---
     const optionsPanelSectionHeading = createSectionHeading('Options Panel');
@@ -6505,10 +6542,10 @@ function setupOptionsWindow() {
             { storageKey: 'titleTextColor', cssVariable: '--otk-title-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'title-text' },
             { storageKey: 'guiThreadListTitleColor', cssVariable: '--otk-gui-threadlist-title-color', defaultValue: '#e0e0e0', inputType: 'color', idSuffix: 'threadlist-title' },
             { storageKey: 'guiThreadListTimeColor', cssVariable: '--otk-gui-threadlist-time-color', defaultValue: '#aaa', inputType: 'color', idSuffix: 'threadlist-time' },
-            { storageKey: 'actualStatsTextColor', cssVariable: '--otk-stats-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'actual-stats-text' },
-            { storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'background-updates-stats-text' },
+            { storageKey: 'actualStatsTextColor', cssVariable: '--otk-stats-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'actual-stats-text' },
+            { storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'background-updates-stats-text' },
             { storageKey: 'viewerBgColor', cssVariable: '--otk-viewer-bg-color', defaultValue: '#ffd1a4', inputType: 'color', idSuffix: 'viewer-bg' },
-            { storageKey: 'guiBottomBorderColor', cssVariable: '--otk-gui-bottom-border-color', defaultValue: '#ffd1a4', inputType: 'color', idSuffix: 'gui-bottom-border' },
+            { storageKey: 'guiBottomBorderColor', cssVariable: '--otk-gui-bottom-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'gui-bottom-border' },
             // { storageKey: 'viewerMessageFontSize', cssVariable: '--otk-viewer-message-font-size', defaultValue: '13px', inputType: 'number', unit: 'px', idSuffix: 'fontsize-message-text' }, // Removed old global
             // New Depth-Specific Content Font Sizes
             { storageKey: 'msgDepth0ContentFontSize', cssVariable: '--otk-msg-depth0-content-font-size', defaultValue: '16px', inputType: 'number', unit: 'px', min: 8, max: 24, idSuffix: 'msg-depth0-content-fontsize'},
@@ -6731,7 +6768,7 @@ async function main() {
             --otk-options-text-color: #e6e6e6; /* For text within the options panel */
             --otk-title-text-color: #ff8040; /* Default for main title */
             --otk-stats-text-color: #e6e6e6; /* For the actual stats text numbers in GUI bar */
-            --otk-background-updates-stats-text-color: #ff8040; /* For the 'new' stats text */
+            --otk-background-updates-stats-text-color: #FFD700; /* For the 'new' stats text */
             --otk-viewer-bg-color: #ffd1a4;
             --otk-gui-threadlist-title-color: #e0e0e0;
             --otk-gui-threadlist-time-color: #aaa;
@@ -6751,7 +6788,7 @@ async function main() {
             --otk-msg-depth2plus-header-text-color: #555555; /* example.html header text */
 
             --otk-viewer-message-font-size: 13px; /* Default font size for message text - remains common */
-            --otk-gui-bottom-border-color: #ffd1a4; /* Default for GUI bottom border - remains common */
+            --otk-gui-bottom-border-color: #ff8040; /* Default for GUI bottom border - remains common */
             --otk-cog-icon-color: #e6e6e6; /* Default for settings cog icon */
             --otk-disable-bg-font-color: #ff8040; /* Default for "Disable Background Updates" text */
             --otk-countdown-text-color: #ff8040; /* Default for countdown timer text */
