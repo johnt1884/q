@@ -1177,18 +1177,20 @@ function createTweetEmbedElement(tweetId) {
         return String(num).padStart(length, '0');
     }
 
-    function animateCounter(element, start, end, duration) {
-            element.style.color = 'var(--otk-background-updates-stats-text-color)';
-        let startTimestamp = null;
-        const step = (timestamp) => {
-            if (!startTimestamp) startTimestamp = timestamp;
-            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-            element.textContent = ` (+${Math.floor(progress * (end - start) + start)} new)`;
-            if (progress < 1) {
-                window.requestAnimationFrame(step);
-            }
-        };
-        window.requestAnimationFrame(step);
+    function updateCountdown() {
+        const nextUpdateTimestamp = parseInt(localStorage.getItem('otkNextUpdateTimestamp') || '0', 10);
+        const countdownTimer = document.getElementById('otk-countdown-timer');
+        if (!countdownTimer) {
+            return;
+        }
+
+        const now = Date.now();
+        const timeLeft = Math.max(0, nextUpdateTimestamp - now);
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+        countdownTimer.textContent = `${padNumber(hours, 2)}:${padNumber(minutes, 2)}:${padNumber(seconds, 2)}`;
     }
 
     function hexToRgbParts(hex) {
@@ -1249,7 +1251,16 @@ function createTweetEmbedElement(tweetId) {
         const isBlurred = blurredImages.has(filehash);
 
         allImagesOnPage.forEach(img => {
-            img.style.filter = isBlurred ? `blur(${blurAmount}px)` : '';
+            img.style.filter = isBlurred ? `blur(${blurAmount}px)` : 'none';
+            const wrapper = img.closest('.image-wrapper');
+            if (wrapper) {
+                const blurIcon = wrapper.querySelector('.blur-icon');
+                if (isBlurred) {
+                    if (blurIcon) blurIcon.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                } else {
+                    if (blurIcon) blurIcon.style.backgroundColor = 'transparent';
+                }
+            }
         });
         consoleLog(`Toggled blur for ${filehash}. Now blurred: ${isBlurred}`);
     }
@@ -1352,7 +1363,7 @@ function createTweetEmbedElement(tweetId) {
 
             const time = new Date(thread.firstMessageTime * 1000);
             const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const formattedTimestamp = `[${timeStr}]`;
+            const formattedTimestamp = `${timeStr}`;
             const timestampSpan = document.createElement('span');
             timestampSpan.textContent = formattedTimestamp;
             let timestampSpanStyle = `
@@ -1848,6 +1859,9 @@ function _populateAttachmentDivWithMedia(
         img.style.cursor = 'pointer';
         img.style.display = 'block';
         img.style.borderRadius = '3px';
+        img.style.transform = 'translateZ(0)';
+        img.style.backfaceVisibility = 'hidden';
+        img.style.userSelect = 'none';
 
         let webFullSrc = `https://i.4cdn.org/${actualBoardForLink}/${message.attachment.tim}${message.attachment.ext}`;
         let webThumbSrc = `https://i.4cdn.org/${actualBoardForLink}/${message.attachment.tim}s.jpg`;
@@ -1901,11 +1915,14 @@ function _populateAttachmentDivWithMedia(
         });
 
         const imageWrapper = document.createElement('div');
+        imageWrapper.classList.add('image-wrapper');
         imageWrapper.style.position = 'relative';
         imageWrapper.style.display = 'inline-block'; // So it doesn't take full width
+        imageWrapper.style.userSelect = 'none';
 
         // Create the blur icon
         const blurIcon = document.createElement('div');
+        blurIcon.classList.add('blur-icon');
         blurIcon.style.cssText = `
             position: absolute;
             top: 5px;
@@ -1920,7 +1937,8 @@ function _populateAttachmentDivWithMedia(
             justify-content: center;
             z-index: 10;
         `;
-        blurIcon.style.backgroundImage = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNy45NCAxNy45NEExMC45NCAxMC45NCAwIDAgMSAxMiAxOS41QzcgMTkuNSAyLjczIDE1Ljg5IDEgMTJhMTMuMDggMTMuMDggMCAwIDEgMy4wNi00LjI2Ii8+PHBhdGggZD0iTTEwLjU4IDEwLjU4YTMgMyAwIDAgMCA0LjI0IDQuMjQiLz48cGF0aCBkPSJNMjMgMUwxIDIzIi8+PHBhdGggZD0iTTkuODggNS40N0ExMC45NCAxMC45NCAwIDAgMSAxMiA0LjVjNSAwIDkuMjcgMy42MSAxMSA3LjVhMTMuMDggMTMuMDggMCAwIDEtNC4xNyA1LjE5Ii8+PC9zdmc+")`;
+        blurIcon.style.backgroundImage = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNy45NCAxNy45NEExMC45NCAxMC45NCAwIDAgMSAxMiAxOS41QzcgMTkuNSAyLjczIDE1Ljg5IDEgMTJhMTMuMDggMTMuMDggMCAwIDEgMy4wNi00LjI2Ii8+PHBhdGggZD0iTTEwLjU4IDEwLjU4YTMgMyAwIDAgMCA0LjI0IDQuMjQiLz48cGF0aCBkPSJNMjMgMUwxIDIzIi8+PHBhdGggZD0iTkuODggNS40N0ExMC45NCAxMC45NCAwIDAgMSAxMiA0LjVjNSAwIDkuMjcgMy42MSAxMSA3LjVhMTMuMDggMTMuMDggMCAwIDEtNC4xNyA1LjE5Ii8+PC9zdmc+")`;
+        blurIcon.style.backgroundSize = '16px';
         blurIcon.style.backgroundRepeat = 'no-repeat';
         blurIcon.style.backgroundPosition = 'center';
         blurIcon.title = 'Toggle blur for this image';
@@ -1929,6 +1947,11 @@ function _populateAttachmentDivWithMedia(
             e.stopPropagation(); // Prevent image click-to-zoom
             e.preventDefault();
             toggleImageBlur(filehash);
+            if (blurredImages.has(filehash)) {
+                blurIcon.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+            } else {
+                blurIcon.style.backgroundColor = 'transparent';
+            }
         });
 
         // Create the resize icon
@@ -1936,7 +1959,7 @@ function _populateAttachmentDivWithMedia(
         resizeIcon.style.cssText = `
             position: absolute;
             top: 5px;
-            right: 5px;
+            left: 34px;
             width: 24px;
             height: 24px;
             background-color: rgba(0, 0, 0, 0.6);
@@ -1946,8 +1969,9 @@ function _populateAttachmentDivWithMedia(
             align-items: center;
             justify-content: center;
             z-index: 10;
+            background-size: 16px;
         `;
-        resizeIcon.style.backgroundImage = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjE1IDMgMjEgMyAyMSA5Ii8+PGxpbmUgeDE9IjE0IiB5MT0iMTAiIHgyPSIyMSIgeTI9IjMiLz48cG9seWxpbmUgcG9pbnRzPSI5IDIxIDMgMjEgMyAxNSIvPjxsaW5lIHgxPSIxMCIgeTE9IjE0IiB4Mj0iMyIgeTI9IjIxIi8+PC9zdmc+")`;
+        resizeIcon.style.backgroundImage = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZjgwNDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSIxNiA0IDIwIDQgMjAgOCIvPjxsaW5lIHgxPSIyMCIgeTE9IjQiIHgyPSIxNCIgeTI9IjEwIi8+PHBvbHlsaW5lIHBvaW50cz0iOCAyMCA0IDIwIDQgMTYiLz48bGluZSB4MT0iNCIgeTE9IjIwIiB4Mj0iMTAiIHkyPSIxNCIvPjwvc3ZnPg==")`;
         resizeIcon.style.backgroundRepeat = 'no-repeat';
         resizeIcon.style.backgroundPosition = 'center';
         resizeIcon.title = 'Toggle full size';
@@ -4548,12 +4572,12 @@ function _populateAttachmentDivWithMedia(
         const countdownTimer = document.createElement('span');
         countdownTimer.id = 'otk-countdown-timer';
         countdownTimer.textContent = '00:00:00';
-        countdownTimer.style.cssText = `font-size: 11px; color: var(--otk-countdown-text-color);`;
+        countdownTimer.style.cssText = `font-size: 11px; color: var(--otk-countdown-text-color, #ff8040);`;
 
         const countdownLabel = document.createElement('span');
         countdownLabel.id = 'otk-countdown-label';
         countdownLabel.textContent = 'Next Update';
-        countdownLabel.style.cssText = `font-size: 11px; color: var(--otk-countdown-text-color, #e6e6e6); margin-left: 5px;`;
+        countdownLabel.style.cssText = `font-size: 11px; color: var(--otk-countdown-text-color, #ff8040); margin-left: 5px;`;
 
         countdownContainer.appendChild(countdownTimer);
         countdownContainer.appendChild(countdownLabel);
@@ -5076,6 +5100,11 @@ function applyThemeSettings() {
     if (settings.disableBgFontColor) {
         document.documentElement.style.setProperty('--otk-disable-bg-font-color', settings.disableBgFontColor);
         updateColorInputs('disable-bg-font', settings.disableBgFontColor);
+    }
+
+    if (settings.countdownTextColor) {
+        document.documentElement.style.setProperty('--otk-countdown-text-color', settings.countdownTextColor);
+        updateColorInputs('countdown-text', settings.countdownTextColor);
     }
 
     // New Messages Divider Color
@@ -5826,7 +5855,7 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Thread Titles Text:", storageKey: 'guiThreadListTitleColor', cssVariable: '--otk-gui-threadlist-title-color', defaultValue: '#e0e0e0', inputType: 'color', idSuffix: 'threadlist-title' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Thread Times Text:", storageKey: 'guiThreadListTimeColor', cssVariable: '--otk-gui-threadlist-time-color', defaultValue: '#aaa', inputType: 'color', idSuffix: 'threadlist-time' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Stats Text:", storageKey: 'actualStatsTextColor', cssVariable: '--otk-stats-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'actual-stats-text' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background Updates Stats Text:", storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'background-updates-stats-text' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background Updates Stats Text:", storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'background-updates-stats-text' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Cog Icon:", storageKey: 'cogIconColor', cssVariable: '--otk-cog-icon-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'cog-icon' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Disable Background Update Text:", storageKey: 'disableBgFontColor', cssVariable: '--otk-disable-bg-font-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'disable-bg-font' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Countdown Timer Text:", storageKey: 'countdownTextColor', cssVariable: '--otk-countdown-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-text' }));
@@ -6477,8 +6506,9 @@ function setupOptionsWindow() {
             { storageKey: 'guiThreadListTitleColor', cssVariable: '--otk-gui-threadlist-title-color', defaultValue: '#e0e0e0', inputType: 'color', idSuffix: 'threadlist-title' },
             { storageKey: 'guiThreadListTimeColor', cssVariable: '--otk-gui-threadlist-time-color', defaultValue: '#aaa', inputType: 'color', idSuffix: 'threadlist-time' },
             { storageKey: 'actualStatsTextColor', cssVariable: '--otk-stats-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'actual-stats-text' },
+            { storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'background-updates-stats-text' },
             { storageKey: 'viewerBgColor', cssVariable: '--otk-viewer-bg-color', defaultValue: '#ffd1a4', inputType: 'color', idSuffix: 'viewer-bg' },
-            { storageKey: 'guiBottomBorderColor', cssVariable: '--otk-gui-bottom-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'gui-bottom-border' },
+            { storageKey: 'guiBottomBorderColor', cssVariable: '--otk-gui-bottom-border-color', defaultValue: '#ffd1a4', inputType: 'color', idSuffix: 'gui-bottom-border' },
             // { storageKey: 'viewerMessageFontSize', cssVariable: '--otk-viewer-message-font-size', defaultValue: '13px', inputType: 'number', unit: 'px', idSuffix: 'fontsize-message-text' }, // Removed old global
             // New Depth-Specific Content Font Sizes
             { storageKey: 'msgDepth0ContentFontSize', cssVariable: '--otk-msg-depth0-content-font-size', defaultValue: '16px', inputType: 'number', unit: 'px', min: 8, max: 24, idSuffix: 'msg-depth0-content-fontsize'},
@@ -6487,16 +6517,16 @@ function setupOptionsWindow() {
             // Existing depth-specific color options (no changes needed to these specific lines, just context for new font sizes)
             { storageKey: 'msgDepth0BgColor', cssVariable: '--otk-msg-depth0-bg-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'msg-depth0-bg' },
             { storageKey: 'msgDepth0TextColor', cssVariable: '--otk-msg-depth0-text-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'msg-depth0-text' },
-            { storageKey: 'msgDepth0HeaderTextColor', cssVariable: '--otk-msg-depth0-header-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth0-header-text' },
-            { storageKey: 'viewerHeaderBorderColor', cssVariable: '--otk-viewer-header-border-color', defaultValue: '#555', inputType: 'color', idSuffix: 'viewer-header-border' },
+            { storageKey: 'msgDepth0HeaderTextColor', cssVariable: '--otk-msg-depth0-header-text-color', defaultValue: '#555555', inputType: 'color', idSuffix: 'msg-depth0-header-text' },
+            { storageKey: 'viewerHeaderBorderColor', cssVariable: '--otk-viewer-header-border-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-header-border' },
             { storageKey: 'msgDepth1BgColor', cssVariable: '--otk-msg-depth1-bg-color', defaultValue: '#d9d9d9', inputType: 'color', idSuffix: 'msg-depth1-bg' },
             { storageKey: 'msgDepth1TextColor', cssVariable: '--otk-msg-depth1-text-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'msg-depth1-text' },
-            { storageKey: 'msgDepth1HeaderTextColor', cssVariable: '--otk-msg-depth1-header-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth1-header-text' },
-            { storageKey: 'viewerQuote1HeaderBorderColor', cssVariable: '--otk-viewer-quote1-header-border-color', defaultValue: '#343434', inputType: 'color', idSuffix: 'viewer-quote1-border' },
+            { storageKey: 'msgDepth1HeaderTextColor', cssVariable: '--otk-msg-depth1-header-text-color', defaultValue: '#555555', inputType: 'color', idSuffix: 'msg-depth1-header-text' },
+            { storageKey: 'viewerQuote1HeaderBorderColor', cssVariable: '--otk-viewer-quote1-header-border-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-quote1-border' },
             { storageKey: 'msgDepth2plusBgColor', cssVariable: '--otk-msg-depth2plus-bg-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'msg-depth2plus-bg' },
             { storageKey: 'msgDepth2plusTextColor', cssVariable: '--otk-msg-depth2plus-text-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'msg-depth2plus-text' },
-            { storageKey: 'msgDepth2plusHeaderTextColor', cssVariable: '--otk-msg-depth2plus-header-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'msg-depth2plus-header-text' },
-            { storageKey: 'viewerQuote2plusHeaderBorderColor', cssVariable: '--otk-viewer-quote2plus-header-border-color', defaultValue: '#2a2a2a', inputType: 'color', idSuffix: 'viewer-quote2plus-border' },
+            { storageKey: 'msgDepth2plusHeaderTextColor', cssVariable: '--otk-msg-depth2plus-header-text-color', defaultValue: '#555555', inputType: 'color', idSuffix: 'msg-depth2plus-header-text' },
+            { storageKey: 'viewerQuote2plusHeaderBorderColor', cssVariable: '--otk-viewer-quote2plus-header-border-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-quote2plus-border' },
             { storageKey: 'cogIconColor', cssVariable: '--otk-cog-icon-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'cog-icon' },
             { storageKey: 'disableBgFontColor', cssVariable: '--otk-disable-bg-font-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'disable-bg-font' },
             { storageKey: 'countdownTextColor', cssVariable: '--otk-countdown-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-text' },
@@ -6696,19 +6726,20 @@ async function main() {
     styleElement.textContent = `
         :root {
             --otk-gui-bg-color: #181818;
+            --otk-gui-bg-color: #181818;
             --otk-gui-text-color: #e6e6e6; /* General text in the main GUI bar */
             --otk-options-text-color: #e6e6e6; /* For text within the options panel */
-            --otk-title-text-color: #e6e6e6; /* Default for main title */
+            --otk-title-text-color: #ff8040; /* Default for main title */
             --otk-stats-text-color: #e6e6e6; /* For the actual stats text numbers in GUI bar */
-            --otk-background-updates-stats-text-color: #FFD700; /* For the 'new' stats text */
-            --otk-viewer-bg-color: #181818;
+            --otk-background-updates-stats-text-color: #ff8040; /* For the 'new' stats text */
+            --otk-viewer-bg-color: #ffd1a4;
             --otk-gui-threadlist-title-color: #e0e0e0;
             --otk-gui-threadlist-time-color: #aaa;
             --otk-viewer-header-border-color: #000000; /* Default theme's header underline for depth 0 - Now black */
             --otk-viewer-quote1-header-border-color: #000000; /* Default theme's header underline for depth 1 - Now black */
             /* New defaults based on example.html for the new design, now acting as global defaults */
             --otk-msg-depth0-bg-color: #ffffff; /* example.html main bg */
-            --otk-msg-depth1-bg-color: rgba(0, 0, 0, 0.05); /* example.html quote1 bg */
+            --otk-msg-depth1-bg-color: #d9d9d9; /* example.html quote1 bg */
             --otk-msg-depth2plus-bg-color: #ffffff; /* example.html quote2 bg (alternating) */
 
             --otk-msg-depth0-text-color: #333333; /* example.html content text (assumed) */
@@ -6720,18 +6751,18 @@ async function main() {
             --otk-msg-depth2plus-header-text-color: #555555; /* example.html header text */
 
             --otk-viewer-message-font-size: 13px; /* Default font size for message text - remains common */
-            --otk-gui-bottom-border-color: #555; /* Default for GUI bottom border - remains common */
+            --otk-gui-bottom-border-color: #ffd1a4; /* Default for GUI bottom border - remains common */
             --otk-cog-icon-color: #e6e6e6; /* Default for settings cog icon */
-            --otk-disable-bg-font-color: #e6e6e6; /* Default for "Disable Background Updates" text */
+            --otk-disable-bg-font-color: #ff8040; /* Default for "Disable Background Updates" text */
             --otk-countdown-text-color: #ff8040; /* Default for countdown timer text */
             --otk-viewer-quote2plus-header-border-color: #000000; /* Default for Depth 2+ message header underline - Now black */
             --otk-new-messages-divider-color: #FFD700; /* Default for new message separator line */
             --otk-new-messages-font-color: #FFD700; /* Default for new message separator text */
 
             /* New Depth-Specific Content Font Sizes */
-            --otk-msg-depth0-content-font-size: 13px;
-            --otk-msg-depth1-content-font-size: 13px;
-            --otk-msg-depth2plus-content-font-size: 13px;
+            --otk-msg-depth0-content-font-size: 16px;
+            --otk-msg-depth1-content-font-size: 16px;
+            --otk-msg-depth2plus-content-font-size: 16px;
 
             /* GUI Button Colors */
             --otk-button-bg-color: #555;
@@ -6742,7 +6773,7 @@ async function main() {
 
             /* Loading Screen Colors */
             --otk-loading-overlay-base-hex-color: #000000; /* Hex base for overlay */
-            --otk-loading-overlay-opacity: 0.8;
+            --otk-loading-overlay-opacity: 1.0;
             --otk-loading-text-color: #ffffff; /* Hex for white */
             --otk-loading-progress-bar-bg-color: #333333; /* Hex for dark grey */
             --otk-loading-progress-bar-fill-color: #4CAF50; /* Already hex */
@@ -6750,8 +6781,8 @@ async function main() {
             /* Add more variables here as they are identified */
 
             /* Anchor Highlight Colors */
-            --otk-anchor-highlight-bg-color: #4a4a3a;    /* Default: dark yellow/greenish */
-            --otk-anchor-highlight-border-color: #FFD700; /* Default: gold */
+            --otk-anchor-highlight-bg-color: #ff8040;    /* Default: dark yellow/greenish */
+            --otk-anchor-highlight-border-color: #000000; /* Default: gold */
 
             /* --- New Design Theme Variables --- */
             --otk-newdesign-main-bg: #fff;
@@ -6890,6 +6921,10 @@ async function main() {
         }
         .otk-button--active {
             background-color: var(--otk-button-active-bg-color) !important;
+        }
+
+        .image-wrapper:not(:hover) .blur-icon {
+            display: none;
         }
 
         .${ANCHORED_MESSAGE_CLASS} {
