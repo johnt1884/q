@@ -836,6 +836,7 @@ function createTweetEmbedElement(tweetId) {
             margin-left: 10px;
             cursor: pointer;
             display: inline-block;
+            vertical-align: middle;
             color: var(--otk-cog-icon-color);
         `;
         cogIcon.title = "Open Settings";
@@ -843,25 +844,12 @@ function createTweetEmbedElement(tweetId) {
         const titleContainer = document.createElement('div');
         titleContainer.style.cssText = `
             display: flex;
-            align-items: baseline;
+            align-items: center;
             justify-content: flex-start; /* Left-align title and cog */
             margin-bottom: 4px;
         `;
         titleContainer.appendChild(otkThreadTitleDisplay);
         titleContainer.appendChild(cogIcon);
-
-        const clockIcon = document.createElement('span');
-        clockIcon.id = 'otk-clock-icon';
-        clockIcon.innerHTML = '&#128337;';
-        clockIcon.style.cssText = `
-            font-size: 16px;
-            margin-left: 10px;
-            cursor: pointer;
-            display: inline-block;
-            color: var(--otk-cog-icon-color);
-        `;
-        clockIcon.title = "Toggle Clock";
-        titleContainer.appendChild(clockIcon);
 
         const otkStatsDisplay = document.createElement('div');
         otkStatsDisplay.id = 'otk-stats-display';
@@ -1521,7 +1509,7 @@ function animateStatIncrease(statEl, plusNEl, from, to) {
                 }
 
                 renderThreadList();
-        updateDisplayedStatistics(false);
+                updateDisplayedStatistics();
             });
 
             textContentDiv.appendChild(titleTimeContainer);
@@ -1830,7 +1818,7 @@ consoleLog(`[StatsDebug] Unique image hashes for viewer: ${uniqueImageViewerHash
     viewerActiveImageCount = uniqueImageViewerHashes.size;
     viewerActiveVideoCount = viewerTopLevelAttachedVideoHashes.size + viewerTopLevelEmbedIds.size;
     consoleLog(`[StatsDebug] Viewer counts updated: Images=${viewerActiveImageCount}, Videos (top-level attached + top-level embed)=${viewerActiveVideoCount}`);
-updateDisplayedStatistics(false); // Update stats after all media processing is attempted.
+    updateDisplayedStatistics(); // Update stats after all media processing is attempted.
 
             let anchorScrolled = false;
             const storedAnchoredInstanceId = localStorage.getItem(ANCHORED_MESSAGE_ID_KEY);
@@ -2515,7 +2503,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                    updateDisplayedStatistics(false);
+                                            updateDisplayedStatistics();
                                         }
                                     }
                                     textElement.appendChild(createKickEmbedElement(clipId));
@@ -2675,7 +2663,7 @@ function _populateAttachmentDivWithMedia(
                                                 localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                                 let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                                 localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                        updateDisplayedStatistics(false);
+                                                updateDisplayedStatistics();
                                             }
                                         }
                                         textElement.appendChild(embedElement);
@@ -3016,7 +3004,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                    updateDisplayedStatistics(false); // This updates global, not viewer-specific directly
+                                            updateDisplayedStatistics(); // This updates global, not viewer-specific directly
                                         }
                                     }
                                     textElement.appendChild(createYouTubeEmbedElement(videoId, timestampStr));
@@ -3049,7 +3037,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                    updateDisplayedStatistics(false);
+                                            updateDisplayedStatistics();
                                         }
                                     }
                                     textElement.appendChild(createTwitchEmbedElement(patternObj.type, id, timestampStr));
@@ -3074,7 +3062,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                    updateDisplayedStatistics(false);
+                                            updateDisplayedStatistics();
                                         }
                                     }
                                     textElement.appendChild(createTikTokEmbedElement(videoId));
@@ -3101,7 +3089,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                    updateDisplayedStatistics(false);
+                                            updateDisplayedStatistics();
                                         }
                                     }
                                     textElement.appendChild(createStreamableEmbedElement(videoId));
@@ -3234,7 +3222,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                    updateDisplayedStatistics(false);
+                                            updateDisplayedStatistics();
                                         }
                                     }
                                     textElement.appendChild(embedElement);
@@ -3873,7 +3861,7 @@ function _populateAttachmentDivWithMedia(
             consoleLog('[BG] Manual refresh in progress, skipping background refresh.');
             return;
         }
-        consoleLog('[BG] Performing background refresh...', { isBackground, options });
+        consoleLog('[BG] Performing background refresh...');
         try {
             consoleLog('[BG] Calling scanCatalog...');
             const foundThreads = await scanCatalog();
@@ -4002,7 +3990,7 @@ function _populateAttachmentDivWithMedia(
             localStorage.setItem('otkNewImagesCount', accumulatedNewImages);
             localStorage.setItem('otkNewVideosCount', accumulatedNewVideos);
 
-            updateDisplayedStatistics(isBackground);
+            updateDisplayedStatistics();
 
             if (isBackground && newMessages.length > 0) {
                 // When a background refresh happens, we should not add new content to the viewer.
@@ -4084,7 +4072,7 @@ function _populateAttachmentDivWithMedia(
         const { skipViewerUpdate = false } = options; // Destructure with default
 
         resetStatAnimations();
-        consoleLog('[Manual] Refreshing threads and messages...', { options });
+        consoleLog('[Manual] Refreshing threads and messages...');
         isManualRefreshInProgress = true;
         showLoadingScreen("Initializing refresh..."); // Initial message
         try {
@@ -4307,7 +4295,7 @@ function _populateAttachmentDivWithMedia(
              consoleLog(`[Manual Refresh] Resync complete. Snapshot counts: ${renderedMessageIdsInViewer.size} msgs, ${uniqueImageViewerHashes.size} imgs, ${viewerTopLevelAttachedVideoHashes.size + viewerTopLevelEmbedIds.size} videos.`);
         }
 
-            updateDisplayedStatistics(false);
+            updateDisplayedStatistics();
 
             // New logic for incremental append or full render
             const messagesContainer = document.getElementById('otk-messages-container'); // Still needed to check if viewer is open and has container
@@ -4572,7 +4560,7 @@ function _populateAttachmentDivWithMedia(
         statAnimationTimers.push(timer);
     }
 
-    function updateDisplayedStatistics(isBackgroundUpdate = false) {
+    function updateDisplayedStatistics() {
         const threadsTrackedElem = document.getElementById('otk-threads-tracked-stat');
         const totalMessagesElem = document.getElementById('otk-total-messages-stat');
         const localImagesElem = document.getElementById('otk-local-images-stat');
@@ -4650,11 +4638,7 @@ function _populateAttachmentDivWithMedia(
 
             const newCountSpan = document.getElementById(`otk-stat-new-${id}`);
             if (newCount > 0) {
-                if (isBackgroundUpdate) {
-                    animateStat(newCountSpan, startCount, newCount);
-                } else {
-                    newCountSpan.textContent = `(+${newCount} new)`;
-                }
+                animateStat(newCountSpan, startCount, newCount);
             } else {
                 newCountSpan.textContent = ''; // Explicitly clear if no new items
             }
@@ -4727,77 +4711,6 @@ function _populateAttachmentDivWithMedia(
     }
 
     // --- Button Implementations & Event Listeners ---
-    const clockElement = document.createElement('div');
-    clockElement.id = 'otk-clock';
-    clockElement.style.cssText = `
-        position: fixed;
-        top: 86px;
-        right: 10px;
-        background-color: var(--otk-clock-bg-color, var(--otk-gui-bg-color));
-        color: var(--otk-clock-text-color, var(--otk-gui-text-color));
-        padding: 5px;
-        border: 1px solid var(--otk-clock-border-color);
-        border-radius: 5px;
-        z-index: 10000;
-        display: none;
-        cursor: move;
-    `;
-    document.body.appendChild(clockElement);
-
-    // Make clock draggable
-    let isClockDragging = false;
-    let clockOffsetX, clockOffsetY;
-
-    // Load saved clock position
-    const CLOCK_POSITION_KEY = 'otkClockPosition';
-    try {
-        const savedClockPos = JSON.parse(localStorage.getItem(CLOCK_POSITION_KEY));
-        if (savedClockPos && savedClockPos.top && savedClockPos.left) {
-            clockElement.style.top = savedClockPos.top;
-            clockElement.style.left = savedClockPos.left;
-            clockElement.style.right = 'auto';
-        }
-    } catch (e) {
-        consoleError("Error parsing saved clock position from localStorage:", e);
-    }
-
-
-    clockElement.addEventListener('mousedown', (e) => {
-        isClockDragging = true;
-        clockOffsetX = e.clientX - clockElement.offsetLeft;
-        clockOffsetY = e.clientY - clockElement.offsetTop;
-        clockElement.style.userSelect = 'none';
-        document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (isClockDragging) {
-            let newLeft = e.clientX - clockOffsetX;
-            let newTop = e.clientY - clockOffsetY;
-
-            const buffer = 10;
-            const maxLeft = window.innerWidth - clockElement.offsetWidth - buffer;
-            const maxTop = window.innerHeight - clockElement.offsetHeight - buffer;
-
-            newLeft = Math.max(buffer, Math.min(newLeft, maxLeft));
-            newTop = Math.max(buffer, Math.min(newTop, maxTop));
-
-            clockElement.style.left = newLeft + 'px';
-            clockElement.style.top = newTop + 'px';
-            clockElement.style.right = 'auto';
-        }
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (isClockDragging) {
-            isClockDragging = false;
-            clockElement.style.userSelect = '';
-            document.body.style.userSelect = '';
-            // Save position to localStorage
-            localStorage.setItem(CLOCK_POSITION_KEY, JSON.stringify({top: clockElement.style.top, left: clockElement.style.left}));
-        }
-    });
-
     const buttonContainer = document.getElementById('otk-button-container');
     if (buttonContainer) {
         const btnToggleViewer = createTrackerButton('Toggle Viewer', 'otk-toggle-viewer-btn');
@@ -4853,7 +4766,7 @@ function _populateAttachmentDivWithMedia(
         // DEBUG_MODE is now only toggled via localStorage or by editing the script.
 
         const bgUpdateContainer = document.createElement('div');
-        bgUpdateContainer.style.cssText = `display: flex; align-items: center;`;
+        bgUpdateContainer.style.cssText = `display: flex; align-items: baseline;`;
 
         const countdownContainer = document.createElement('div');
         countdownContainer.id = 'otk-countdown-container';
@@ -4895,6 +4808,8 @@ function _populateAttachmentDivWithMedia(
         controlsWrapper.appendChild(bgUpdateContainer);
 
         const btnClearRefresh = createTrackerButton('Restart Tracker', 'otk-restart-tracker-btn');
+        btnClearRefresh.style.alignSelf = 'center'; // Override parent's align-items:stretch to allow natural width & centering
+        btnClearRefresh.style.marginTop = '4px'; // Retain margin for spacing from checkbox if column is short
 
         const btnMemoryReport = createTrackerButton('Memory Report', 'otk-memory-report-btn');
         btnMemoryReport.style.display = localStorage.getItem('otkMemoryReportEnabled') === 'true' ? 'inline-block' : 'none';
@@ -5050,21 +4965,6 @@ function _populateAttachmentDivWithMedia(
             consoleLog('Background refresh stopped.');
         } else {
             consoleLog('Background refresh was not running.');
-        }
-    }
-
-    function updateClock() {
-        const clockElement = document.getElementById('otk-clock');
-        if (clockElement) {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-US', {
-                timeZone: 'America/Chicago',
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            clockElement.textContent = `${timeString} CDT`;
         }
     }
 
@@ -5446,20 +5346,6 @@ function applyThemeSettings() {
     if (settings.blurIconBgColor) {
         document.documentElement.style.setProperty('--otk-blur-icon-bg-color', settings.blurIconBgColor);
         updateColorInputs('blur-icon-bg', settings.blurIconBgColor);
-    }
-
-    // Clock Colors
-    if (settings.clockBgColor) {
-        document.documentElement.style.setProperty('--otk-clock-bg-color', settings.clockBgColor);
-        updateColorInputs('clock-bg', settings.clockBgColor);
-    }
-    if (settings.clockTextColor) {
-        document.documentElement.style.setProperty('--otk-clock-text-color', settings.clockTextColor);
-        updateColorInputs('clock-text', settings.clockTextColor);
-    }
-    if (settings.clockBorderColor) {
-        document.documentElement.style.setProperty('--otk-clock-border-color', settings.clockBorderColor);
-        updateColorInputs('clock-border', settings.clockBorderColor);
     }
 
     // GUI Button Colors
@@ -6216,9 +6102,6 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Disable Background Update Text:", storageKey: 'disableBgFontColor', cssVariable: '--otk-disable-bg-font-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'disable-bg-font' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Countdown Timer Text:", storageKey: 'countdownTextColor', cssVariable: '--otk-countdown-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-text' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Separator:", storageKey: 'separatorColor', cssVariable: '--otk-separator-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'separator' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Background:", storageKey: 'clockBgColor', cssVariable: '--otk-clock-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'clock-bg' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Text:", storageKey: 'clockTextColor', cssVariable: '--otk-clock-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'clock-text' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Border:", storageKey: 'clockBorderColor', cssVariable: '--otk-clock-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'clock-border' }));
 
     // Sub-section for GUI Buttons
     const guiButtonsSubHeading = document.createElement('h6');
@@ -6588,6 +6471,7 @@ function setupOptionsWindow() {
     optionsPanelSectionHeading.style.marginBottom = "18px"; // Increased bottom margin
     themeOptionsContainer.appendChild(optionsPanelSectionHeading);
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Panel Text:", storageKey: 'optionsTextColor', cssVariable: '--otk-options-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'options-text' }));
+    // themeOptionsContainer.appendChild(createDivider()); // Removed divider
 
     // --- Loading Screen Sub-Section (within Theme) ---
     const loadingScreenSubHeading = document.createElement('h6');
@@ -6922,12 +6806,7 @@ function setupOptionsWindow() {
             { storageKey: 'loadingTextColor', cssVariable: '--otk-loading-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'loading-text' },
             { storageKey: 'loadingProgressBarBgColor', cssVariable: '--otk-loading-progress-bar-bg-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'loading-progress-bg' },
             { storageKey: 'loadingProgressBarFillColor', cssVariable: '--otk-loading-progress-bar-fill-color', defaultValue: '#4CAF50', inputType: 'color', idSuffix: 'loading-progress-fill' },
-            { storageKey: 'loadingProgressBarTextColor', cssVariable: '--otk-loading-progress-bar-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'loading-progress-text' },
-
-            // Clock Colours
-            { storageKey: 'clockBgColor', cssVariable: '--otk-clock-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'clock-bg' },
-            { storageKey: 'clockTextColor', cssVariable: '--otk-clock-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'clock-text' },
-            { storageKey: 'clockBorderColor', cssVariable: '--otk-clock-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'clock-border' }
+            { storageKey: 'loadingProgressBarTextColor', cssVariable: '--otk-loading-progress-bar-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'loading-progress-text' }
         ];
     }
 
@@ -7049,26 +6928,23 @@ function setupOptionsWindow() {
         consoleLog("Draggable window: mousedown");
     });
 
-document.addEventListener('mousemove', (e) => {
-    if (isClockDragging) {
-        let newLeft = e.clientX - clockOffsetX;
-        let newTop = e.clientY - clockOffsetY;
+    document.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            // Ensure optionsWindow is not moved off-screen, with some buffer
+            let newLeft = e.clientX - offsetX;
+            let newTop = e.clientY - offsetY;
 
-        /*
-        // This logic has been removed to allow unconstrained movement.
-        const buffer = 10;
-        const maxLeft = window.innerWidth - clockElement.offsetWidth - buffer;
-        const maxTop = window.innerHeight - clockElement.offsetHeight - buffer;
+            const buffer = 10; // pixels
+            const maxLeft = window.innerWidth - optionsWindow.offsetWidth - buffer;
+            const maxTop = window.innerHeight - optionsWindow.offsetHeight - buffer;
 
-        newLeft = Math.max(buffer, Math.min(newLeft, maxLeft));
-        newTop = Math.max(buffer, Math.min(newTop, maxTop));
-        */
+            newLeft = Math.max(buffer, Math.min(newLeft, maxLeft));
+            newTop = Math.max(buffer, Math.min(newTop, maxTop));
 
-        clockElement.style.left = newLeft + 'px';
-        clockElement.style.top = newTop + 'px';
-        clockElement.style.right = 'auto';
-    }
-});
+            optionsWindow.style.left = newLeft + 'px';
+            optionsWindow.style.top = newTop + 'px';
+        }
+    });
 
     document.addEventListener('mouseup', () => {
         if (isDragging) {
@@ -7114,9 +6990,6 @@ async function main() {
     const styleElement = document.createElement('style');
     styleElement.textContent = `
         :root {
-            --otk-clock-bg-color: #181818;
-            --otk-clock-text-color: #e6e6e6;
-            --otk-clock-border-color: #ff8040;
             --otk-gui-bg-color: #181818;
             --otk-gui-bg-color: #181818;
             --otk-gui-text-color: #e6e6e6; /* General text in the main GUI bar */
@@ -7415,27 +7288,6 @@ async function main() {
             consoleWarn('[Final Check] centerInfoContainer not found for flex-grow check.');
         }
     });
-
-    if (localStorage.getItem('otkClockVisible') === 'true') {
-        const clockElement = document.getElementById('otk-clock');
-        if (clockElement) {
-            clockElement.style.display = 'block';
-        }
-    }
-
-    const clockIcon = document.getElementById('otk-clock-icon');
-    if (clockIcon) {
-        clockIcon.addEventListener('click', () => {
-            const clockElement = document.getElementById('otk-clock');
-            if (clockElement) {
-                const isVisible = clockElement.style.display === 'none';
-                clockElement.style.display = isVisible ? 'block' : 'none';
-                localStorage.setItem('otkClockVisible', isVisible);
-            }
-        });
-    }
-
-    setInterval(updateClock, 1000);
 
     function handleActivity() {
         if (scrollTimeout) {
