@@ -6216,6 +6216,9 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Disable Background Update Text:", storageKey: 'disableBgFontColor', cssVariable: '--otk-disable-bg-font-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'disable-bg-font' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Countdown Timer Text:", storageKey: 'countdownTextColor', cssVariable: '--otk-countdown-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-text' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Separator:", storageKey: 'separatorColor', cssVariable: '--otk-separator-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'separator' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Background:", storageKey: 'clockBgColor', cssVariable: '--otk-clock-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'clock-bg' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Text:", storageKey: 'clockTextColor', cssVariable: '--otk-clock-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'clock-text' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Border:", storageKey: 'clockBorderColor', cssVariable: '--otk-clock-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'clock-border' }));
 
     // Sub-section for GUI Buttons
     const guiButtonsSubHeading = document.createElement('h6');
@@ -6585,14 +6588,6 @@ function setupOptionsWindow() {
     optionsPanelSectionHeading.style.marginBottom = "18px"; // Increased bottom margin
     themeOptionsContainer.appendChild(optionsPanelSectionHeading);
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Panel Text:", storageKey: 'optionsTextColor', cssVariable: '--otk-options-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'options-text' }));
-
-    // --- Clock Section ---
-    const clockSectionHeading = createSectionHeading('Clock');
-    clockSectionHeading.style.marginTop = "22px";
-    clockSectionHeading.style.marginBottom = "18px";
-    themeOptionsContainer.appendChild(clockSectionHeading);
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background:", storageKey: 'clockBgColor', cssVariable: '--otk-clock-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'clock-bg' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Text:", storageKey: 'clockTextColor', cssVariable: '--otk-clock-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'clock-text' }));
 
     // --- Loading Screen Sub-Section (within Theme) ---
     const loadingScreenSubHeading = document.createElement('h6');
@@ -7421,12 +7416,21 @@ async function main() {
         }
     });
 
+    if (localStorage.getItem('otkClockVisible') === 'true') {
+        const clockElement = document.getElementById('otk-clock');
+        if (clockElement) {
+            clockElement.style.display = 'block';
+        }
+    }
+
     const clockIcon = document.getElementById('otk-clock-icon');
     if (clockIcon) {
         clockIcon.addEventListener('click', () => {
             const clockElement = document.getElementById('otk-clock');
             if (clockElement) {
-                clockElement.style.display = clockElement.style.display === 'none' ? 'block' : 'none';
+                const isVisible = clockElement.style.display === 'none';
+                clockElement.style.display = isVisible ? 'block' : 'none';
+                localStorage.setItem('otkClockVisible', isVisible);
             }
         });
     }
