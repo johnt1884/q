@@ -836,7 +836,6 @@ function createTweetEmbedElement(tweetId) {
             margin-left: 10px;
             cursor: pointer;
             display: inline-block;
-            vertical-align: middle;
             color: var(--otk-cog-icon-color);
         `;
         cogIcon.title = "Open Settings";
@@ -844,12 +843,13 @@ function createTweetEmbedElement(tweetId) {
         const titleContainer = document.createElement('div');
         titleContainer.style.cssText = `
             display: flex;
-            align-items: center;
+            align-items: baseline;
             justify-content: flex-start; /* Left-align title and cog */
             margin-bottom: 4px;
         `;
         titleContainer.appendChild(otkThreadTitleDisplay);
         titleContainer.appendChild(cogIcon);
+
 
         const otkStatsDisplay = document.createElement('div');
         otkStatsDisplay.id = 'otk-stats-display';
@@ -919,7 +919,7 @@ function createTweetEmbedElement(tweetId) {
             display: flex;
             flex-direction: column;     /* Stack children vertically */
             align-items: flex-end;      /* Align children (top/bottom rows) to the right */
-            justify-content: space-between; /* Push top row to top, bottom row to bottom */
+            justify-content: center;    /* Center the buttons vertically */
             gap: 5px;                   /* Small gap between top and bottom rows if needed */
             height: 100%;               /* Occupy full height of parent for space-between */
         `;
@@ -1509,7 +1509,7 @@ function animateStatIncrease(statEl, plusNEl, from, to) {
                 }
 
                 renderThreadList();
-                updateDisplayedStatistics();
+        updateDisplayedStatistics(false);
             });
 
             textContentDiv.appendChild(titleTimeContainer);
@@ -1818,7 +1818,7 @@ consoleLog(`[StatsDebug] Unique image hashes for viewer: ${uniqueImageViewerHash
     viewerActiveImageCount = uniqueImageViewerHashes.size;
     viewerActiveVideoCount = viewerTopLevelAttachedVideoHashes.size + viewerTopLevelEmbedIds.size;
     consoleLog(`[StatsDebug] Viewer counts updated: Images=${viewerActiveImageCount}, Videos (top-level attached + top-level embed)=${viewerActiveVideoCount}`);
-    updateDisplayedStatistics(); // Update stats after all media processing is attempted.
+updateDisplayedStatistics(false); // Update stats after all media processing is attempted.
 
             let anchorScrolled = false;
             const storedAnchoredInstanceId = localStorage.getItem(ANCHORED_MESSAGE_ID_KEY);
@@ -2401,7 +2401,32 @@ function _populateAttachmentDivWithMedia(
                 prefix = "⤷ ";
             }
 
-            headerContent.textContent = `${prefix}#${message.id} | ${timestampParts.time} | ${timestampParts.date}`;
+            const idSpan = document.createElement('span');
+            idSpan.textContent = `#${message.id} `;
+            idSpan.style.cursor = 'pointer';
+            idSpan.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const threadUrl = `https://boards.4chan.org/b/thread/${message.originalThreadId}`;
+                const popup = window.open(threadUrl, '_blank', 'width=260,height=425,resizable,scrollbars');
+                if (popup) {
+                    popup.addEventListener('load', () => {
+                        const script = popup.document.createElement('script');
+                        script.textContent = `
+                            const messageId = "${message.id}";
+                            const selector = \`#pi\${messageId} > span.postNum.desktop > a:nth-child(2)\`;
+                            const link = document.querySelector(selector);
+                            if (link) {
+                                link.click();
+                            }
+                        `;
+                        popup.document.body.appendChild(script);
+                    }, true);
+                }
+            });
+
+            headerContent.appendChild(document.createTextNode(prefix));
+            headerContent.appendChild(idSpan);
+            headerContent.appendChild(document.createTextNode(`\u00A0| ${timestampParts.time} | ${timestampParts.date}`));
 
             messageHeader.appendChild(headerContent);
             textWrapperDiv.appendChild(messageHeader);
@@ -2503,7 +2528,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                            updateDisplayedStatistics();
+                                    updateDisplayedStatistics(false);
                                         }
                                     }
                                     textElement.appendChild(createKickEmbedElement(clipId));
@@ -2663,7 +2688,7 @@ function _populateAttachmentDivWithMedia(
                                                 localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                                 let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                                 localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                                updateDisplayedStatistics();
+                                        updateDisplayedStatistics(false);
                                             }
                                         }
                                         textElement.appendChild(embedElement);
@@ -2922,27 +2947,62 @@ function _populateAttachmentDivWithMedia(
                     leftHeaderContent.appendChild(colorSquare);
                 }
 
-                const idTextSpan = document.createElement('span');
-                idTextSpan.textContent = `#${message.id} | ${timestampParts.time}`; // Combined ID and Time
-                leftHeaderContent.appendChild(idTextSpan);
+                const idSpan = document.createElement('span');
+                idSpan.textContent = `#${message.id}`;
+                idSpan.style.cursor = 'pointer';
+                idSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const threadUrl = `https://boards.4chan.org/b/thread/${message.originalThreadId}`;
+                    const popup = window.open(threadUrl, '_blank', 'width=460,height=425,resizable,scrollbars');
+                    if (popup) {
+                        popup.addEventListener('load', () => {
+                            const script = popup.document.createElement('script');
+                            script.textContent = `
+                                const messageId = "${message.id}";
+                                const selector = \`#pi\${messageId} > span.postNum.desktop > a:nth-child(2)\`;
+                                const link = document.querySelector(selector);
+                                if (link) {
+                                    link.click();
+                                }
+                            `;
+                            popup.document.body.appendChild(script);
+                        }, true);
+                    }
+                });
 
-                // const timeSpan = document.createElement('span'); // Removed
-                // timeSpan.textContent = timestampParts.time;
-                // timeSpan.style.textAlign = 'center';
-                // timeSpan.style.flexGrow = '1';
+                const timeText = document.createTextNode(`\u00A0| ${timestampParts.time}`);
+                leftHeaderContent.appendChild(idSpan);
+                leftHeaderContent.appendChild(timeText);
 
                 const dateSpan = document.createElement('span');
                 dateSpan.textContent = timestampParts.date;
-                // dateSpan.style.paddingRight = '5px'; // Padding might not be needed or can be adjusted
 
-                messageHeader.appendChild(leftHeaderContent); // Add the new container
-                // messageHeader.appendChild(timeSpan); // Removed
+                messageHeader.appendChild(leftHeaderContent);
                 messageHeader.appendChild(dateSpan);
             } else { // Simplified header for quoted messages
                 messageHeader.style.justifyContent = 'flex-start'; // Align ID to the start
                 const idSpan = document.createElement('span');
-                idSpan.textContent = `>>${message.id}`; // Changed prefix for quoted messages
-                // Time and Date spans are intentionally omitted for quoted messages
+                idSpan.textContent = ` >>${message.id}`; // Changed prefix for quoted messages
+                idSpan.style.cursor = 'pointer';
+                idSpan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const threadUrl = `https://boards.4chan.org/b/thread/${message.originalThreadId}`;
+                    const popup = window.open(threadUrl, '_blank', 'width=460,height=425,resizable,scrollbars,popup=true');
+                    if (popup) {
+                        popup.addEventListener('load', () => {
+                            const script = popup.document.createElement('script');
+                            script.textContent = `
+                                const messageId = "${message.id}";
+                                const selector = \`#pi\${messageId} > span.postNum.desktop > a:nth-child(2)\`;
+                                const link = document.querySelector(selector);
+                                if (link) {
+                                    link.click();
+                                }
+                            `;
+                            popup.document.body.appendChild(script);
+                        }, true);
+                    }
+                });
                 messageHeader.appendChild(idSpan);
             }
             messageDiv.appendChild(messageHeader);
@@ -3004,7 +3064,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                            updateDisplayedStatistics(); // This updates global, not viewer-specific directly
+                                    updateDisplayedStatistics(false); // This updates global, not viewer-specific directly
                                         }
                                     }
                                     textElement.appendChild(createYouTubeEmbedElement(videoId, timestampStr));
@@ -3037,7 +3097,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                            updateDisplayedStatistics();
+                                    updateDisplayedStatistics(false);
                                         }
                                     }
                                     textElement.appendChild(createTwitchEmbedElement(patternObj.type, id, timestampStr));
@@ -3062,7 +3122,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                            updateDisplayedStatistics();
+                                    updateDisplayedStatistics(false);
                                         }
                                     }
                                     textElement.appendChild(createTikTokEmbedElement(videoId));
@@ -3089,7 +3149,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                            updateDisplayedStatistics();
+                                    updateDisplayedStatistics(false);
                                         }
                                     }
                                     textElement.appendChild(createStreamableEmbedElement(videoId));
@@ -3222,7 +3282,7 @@ function _populateAttachmentDivWithMedia(
                                             localStorage.setItem(SEEN_EMBED_URL_IDS_KEY, JSON.stringify(seenEmbeds));
                                             let currentVideoCount = parseInt(localStorage.getItem(LOCAL_VIDEO_COUNT_KEY) || '0');
                                             localStorage.setItem(LOCAL_VIDEO_COUNT_KEY, (currentVideoCount + 1).toString());
-                                            updateDisplayedStatistics();
+                                    updateDisplayedStatistics(false);
                                         }
                                     }
                                     textElement.appendChild(embedElement);
@@ -3861,7 +3921,7 @@ function _populateAttachmentDivWithMedia(
             consoleLog('[BG] Manual refresh in progress, skipping background refresh.');
             return;
         }
-        consoleLog('[BG] Performing background refresh...');
+        consoleLog('[BG] Performing background refresh...', { isBackground, options });
         try {
             consoleLog('[BG] Calling scanCatalog...');
             const foundThreads = await scanCatalog();
@@ -3990,7 +4050,7 @@ function _populateAttachmentDivWithMedia(
             localStorage.setItem('otkNewImagesCount', accumulatedNewImages);
             localStorage.setItem('otkNewVideosCount', accumulatedNewVideos);
 
-            updateDisplayedStatistics();
+            updateDisplayedStatistics(isBackground);
 
             if (isBackground && newMessages.length > 0) {
                 // When a background refresh happens, we should not add new content to the viewer.
@@ -4072,7 +4132,7 @@ function _populateAttachmentDivWithMedia(
         const { skipViewerUpdate = false } = options; // Destructure with default
 
         resetStatAnimations();
-        consoleLog('[Manual] Refreshing threads and messages...');
+        consoleLog('[Manual] Refreshing threads and messages...', { options });
         isManualRefreshInProgress = true;
         showLoadingScreen("Initializing refresh..."); // Initial message
         try {
@@ -4295,7 +4355,7 @@ function _populateAttachmentDivWithMedia(
              consoleLog(`[Manual Refresh] Resync complete. Snapshot counts: ${renderedMessageIdsInViewer.size} msgs, ${uniqueImageViewerHashes.size} imgs, ${viewerTopLevelAttachedVideoHashes.size + viewerTopLevelEmbedIds.size} videos.`);
         }
 
-            updateDisplayedStatistics();
+            updateDisplayedStatistics(false);
 
             // New logic for incremental append or full render
             const messagesContainer = document.getElementById('otk-messages-container'); // Still needed to check if viewer is open and has container
@@ -4533,7 +4593,7 @@ function _populateAttachmentDivWithMedia(
         const diff = targetValue - startValue;
         if (diff <= 0) {
             if (targetValue > 0) {
-                element.textContent = `(+${targetValue} new)`;
+                element.textContent = `(+${targetValue})`;
             } else {
                 element.textContent = '';
             }
@@ -4541,7 +4601,7 @@ function _populateAttachmentDivWithMedia(
         }
 
         if (tabHidden) {
-            element.textContent = `(+${targetValue} new)`;
+            element.textContent = `(+${targetValue})`;
             return;
         }
 
@@ -4551,7 +4611,7 @@ function _populateAttachmentDivWithMedia(
         let current = startValue;
         const timer = setInterval(() => {
             current++;
-            element.textContent = `(+${current} new)`;
+            element.textContent = `(+${current})`;
             if (current >= targetValue) {
                 clearInterval(timer);
                 statAnimationTimers = statAnimationTimers.filter(t => t !== timer);
@@ -4560,7 +4620,7 @@ function _populateAttachmentDivWithMedia(
         statAnimationTimers.push(timer);
     }
 
-    function updateDisplayedStatistics() {
+    function updateDisplayedStatistics(isBackgroundUpdate = false) {
         const threadsTrackedElem = document.getElementById('otk-threads-tracked-stat');
         const totalMessagesElem = document.getElementById('otk-total-messages-stat');
         const localImagesElem = document.getElementById('otk-local-images-stat');
@@ -4638,7 +4698,11 @@ function _populateAttachmentDivWithMedia(
 
             const newCountSpan = document.getElementById(`otk-stat-new-${id}`);
             if (newCount > 0) {
-                animateStat(newCountSpan, startCount, newCount);
+                if (isBackgroundUpdate) {
+                    animateStat(newCountSpan, startCount, newCount);
+                } else {
+                    newCountSpan.textContent = `(+${newCount})`;
+                }
             } else {
                 newCountSpan.textContent = ''; // Explicitly clear if no new items
             }
@@ -4657,7 +4721,7 @@ function _populateAttachmentDivWithMedia(
         button.textContent = text;
         button.classList.add('otk-tracker-button'); // Add a common class for potential shared base styles not from variables
         button.style.cssText = `
-            padding: 5px 10px;
+            padding: 12px 15px;
             cursor: pointer;
             background-color: var(--otk-button-bg-color);
             color: var(--otk-button-text-color);
@@ -4711,6 +4775,151 @@ function _populateAttachmentDivWithMedia(
     }
 
     // --- Button Implementations & Event Listeners ---
+    const clockElement = document.createElement('div');
+    clockElement.id = 'otk-clock';
+    clockElement.style.cssText = `
+        position: fixed;
+        top: 86px;
+        right: 10px;
+        background-color: var(--otk-clock-bg-color, var(--otk-gui-bg-color));
+        color: var(--otk-clock-text-color, var(--otk-gui-text-color));
+        padding: 5px;
+        border: 1px solid var(--otk-clock-border-color);
+        border-radius: 5px;
+        z-index: 10000;
+        display: none;
+        cursor: move;
+    `;
+    document.body.appendChild(clockElement);
+
+    // Make clock draggable
+    let isClockDragging = false;
+    let clockOffsetX, clockOffsetY;
+
+    // Load saved clock position
+    const CLOCK_POSITION_KEY = 'otkClockPosition';
+    try {
+        const savedClockPos = JSON.parse(localStorage.getItem(CLOCK_POSITION_KEY));
+        if (savedClockPos && savedClockPos.top && savedClockPos.left) {
+            clockElement.style.top = savedClockPos.top;
+            clockElement.style.left = savedClockPos.left;
+            clockElement.style.right = 'auto';
+        }
+    } catch (e) {
+        consoleError("Error parsing saved clock position from localStorage:", e);
+    }
+
+
+    clockElement.addEventListener('mousedown', (e) => {
+        isClockDragging = true;
+        clockOffsetX = e.clientX - clockElement.offsetLeft;
+        clockOffsetY = e.clientY - clockElement.offsetTop;
+        clockElement.style.userSelect = 'none';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (isClockDragging) {
+            let newLeft = e.clientX - clockOffsetX;
+            let newTop = e.clientY - clockOffsetY;
+
+            const buffer = 10;
+            const maxLeft = window.innerWidth - clockElement.offsetWidth - buffer;
+            const maxTop = window.innerHeight - clockElement.offsetHeight - buffer;
+
+            newLeft = Math.max(buffer, Math.min(newLeft, maxLeft));
+            newTop = Math.max(buffer, Math.min(newTop, maxTop));
+
+            clockElement.style.left = newLeft + 'px';
+            clockElement.style.top = newTop + 'px';
+            clockElement.style.right = 'auto';
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isClockDragging) {
+            isClockDragging = false;
+            clockElement.style.userSelect = '';
+            document.body.style.userSelect = '';
+            // Save position to localStorage
+            localStorage.setItem(CLOCK_POSITION_KEY, JSON.stringify({top: clockElement.style.top, left: clockElement.style.left}));
+        }
+    });
+
+    // --- Draggable Countdown Timer ---
+    const countdownElement = document.createElement('div');
+    countdownElement.id = 'otk-countdown-timer-movable';
+    countdownElement.style.cssText = `
+        position: fixed;
+        top: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--otk-clock-bg-color, var(--otk-gui-bg-color));
+        padding: 5px;
+        border: 1px solid var(--otk-clock-border-color);
+        border-radius: 5px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        cursor: move;
+        font-size: 14px;
+    `;
+    const countdownTimer = document.createElement('span');
+    countdownTimer.id = 'otk-countdown-timer';
+    countdownTimer.textContent = '00:00:00';
+    const countdownLabel = document.createElement('span');
+    countdownLabel.id = 'otk-countdown-label';
+    countdownLabel.textContent = 'Next Update:\u00A0';
+    countdownLabel.style.color = 'var(--otk-countdown-label-text-color)';
+    countdownTimer.style.color = 'var(--otk-countdown-timer-text-color)';
+    countdownElement.appendChild(countdownLabel);
+    countdownElement.appendChild(countdownTimer);
+    document.body.appendChild(countdownElement);
+
+    let isCountdownDragging = false;
+    let countdownOffsetX, countdownOffsetY;
+
+    const COUNTDOWN_POSITION_KEY = 'otkCountdownPosition';
+    try {
+        const savedCountdownPos = JSON.parse(localStorage.getItem(COUNTDOWN_POSITION_KEY));
+        if (savedCountdownPos && savedCountdownPos.top && savedCountdownPos.left) {
+            countdownElement.style.top = savedCountdownPos.top;
+            countdownElement.style.left = savedCountdownPos.left;
+            countdownElement.style.transform = 'none'; // Remove transform if we have a saved position
+        }
+    } catch (e) {
+        consoleError("Error parsing saved countdown position from localStorage:", e);
+    }
+
+    countdownElement.addEventListener('mousedown', (e) => {
+        isCountdownDragging = true;
+        countdownOffsetX = e.clientX - countdownElement.offsetLeft;
+        countdownOffsetY = e.clientY - countdownElement.offsetTop;
+        countdownElement.style.userSelect = 'none';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (isCountdownDragging) {
+            let newLeft = e.clientX - countdownOffsetX;
+            let newTop = e.clientY - countdownOffsetY;
+
+            countdownElement.style.left = newLeft + 'px';
+            countdownElement.style.top = newTop + 'px';
+            countdownElement.style.transform = 'none';
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isCountdownDragging) {
+            isCountdownDragging = false;
+            countdownElement.style.userSelect = '';
+            document.body.style.userSelect = '';
+            localStorage.setItem(COUNTDOWN_POSITION_KEY, JSON.stringify({top: countdownElement.style.top, left: countdownElement.style.left}));
+        }
+    });
+
+
     const buttonContainer = document.getElementById('otk-button-container');
     if (buttonContainer) {
         const btnToggleViewer = createTrackerButton('Toggle Viewer', 'otk-toggle-viewer-btn');
@@ -4765,51 +4974,9 @@ function _populateAttachmentDivWithMedia(
         // Debug mode checkbox and label are removed from here.
         // DEBUG_MODE is now only toggled via localStorage or by editing the script.
 
-        const bgUpdateContainer = document.createElement('div');
-        bgUpdateContainer.style.cssText = `display: flex; align-items: baseline;`;
-
-        const countdownContainer = document.createElement('div');
-        countdownContainer.id = 'otk-countdown-container';
-        countdownContainer.style.cssText = `display: flex; align-items: center;`;
-
-        const countdownTimer = document.createElement('span');
-        countdownTimer.id = 'otk-countdown-timer';
-        countdownTimer.textContent = '00:00:00';
-        countdownTimer.style.cssText = `font-size: 11px; color: var(--otk-countdown-text-color, #ff8040);`;
-
-        const countdownLabel = document.createElement('span');
-        countdownLabel.id = 'otk-countdown-label';
-        countdownLabel.textContent = 'Next Update';
-        countdownLabel.style.cssText = `font-size: 11px; color: var(--otk-countdown-text-color, #ff8040); margin-left: 5px;`;
-
-        countdownContainer.appendChild(countdownTimer);
-        countdownContainer.appendChild(countdownLabel);
-
-        const separator = document.createElement('span');
-        separator.textContent = '|';
-        separator.style.cssText = `font-size: 11px; color: var(--otk-separator-color, #e6e6e6); margin: 0 10px;`;
-
-        const bgUpdateCheckbox = document.createElement('input');
-        bgUpdateCheckbox.type = 'checkbox';
-        bgUpdateCheckbox.id = 'otk-disable-bg-update-checkbox';
-        bgUpdateCheckbox.checked = localStorage.getItem(BACKGROUND_UPDATES_DISABLED_KEY) === 'true';
-
-        const bgUpdateLabel = document.createElement('label');
-        bgUpdateLabel.htmlFor = 'otk-disable-bg-update-checkbox';
-        bgUpdateLabel.textContent = 'Disable Background Updates';
-        bgUpdateLabel.style.cssText = `font-size: 11px; color: var(--otk-disable-bg-font-color, #e6e6e6); white-space: normal; cursor: pointer; line-height: 1.2;`;
-
-        bgUpdateContainer.appendChild(countdownContainer);
-        bgUpdateContainer.appendChild(separator);
-        bgUpdateContainer.appendChild(bgUpdateLabel);
-        bgUpdateCheckbox.style.marginLeft = '5px';
-        bgUpdateContainer.appendChild(bgUpdateCheckbox);
-
-        controlsWrapper.appendChild(bgUpdateContainer);
+        // Countdown timer is now a separate draggable element
 
         const btnClearRefresh = createTrackerButton('Restart Tracker', 'otk-restart-tracker-btn');
-        btnClearRefresh.style.alignSelf = 'center'; // Override parent's align-items:stretch to allow natural width & centering
-        btnClearRefresh.style.marginTop = '4px'; // Retain margin for spacing from checkbox if column is short
 
         const btnMemoryReport = createTrackerButton('Memory Report', 'otk-memory-report-btn');
         btnMemoryReport.style.display = localStorage.getItem('otkMemoryReportEnabled') === 'true' ? 'inline-block' : 'none';
@@ -4863,32 +5030,6 @@ function _populateAttachmentDivWithMedia(
             } finally {
                 btnClearRefresh.disabled = false;
                 consoleLog('[GUI] Restart operation finished.');
-            }
-        });
-
-        if (bgUpdateCheckbox.checked) {
-            consoleLog('Background updates are initially disabled by user preference.');
-        } else {
-            // startBackgroundRefresh(); // Will be called in main() after DB init
-        }
-
-        bgUpdateCheckbox.addEventListener('change', () => {
-            if (bgUpdateCheckbox.checked) {
-                stopBackgroundRefresh();
-                if (countdownIntervalId) {
-                    clearInterval(countdownIntervalId);
-                    countdownIntervalId = null;
-                }
-                const countdownTimer = document.getElementById('otk-countdown-timer');
-                if (countdownTimer) {
-                    countdownTimer.textContent = '--:--:--';
-                }
-                localStorage.setItem(BACKGROUND_UPDATES_DISABLED_KEY, 'true');
-                consoleLog('Background updates disabled via checkbox.');
-            } else {
-                localStorage.setItem(BACKGROUND_UPDATES_DISABLED_KEY, 'false');
-                startBackgroundRefresh(true); // Start immediately
-                consoleLog('Background updates enabled via checkbox.');
             }
         });
 
@@ -4965,6 +5106,21 @@ function _populateAttachmentDivWithMedia(
             consoleLog('Background refresh stopped.');
         } else {
             consoleLog('Background refresh was not running.');
+        }
+    }
+
+    function updateClock() {
+        const clockElement = document.getElementById('otk-clock');
+        if (clockElement) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                timeZone: 'America/Chicago',
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            clockElement.textContent = `${timeString} CDT`;
         }
     }
 
@@ -5303,9 +5459,14 @@ function applyThemeSettings() {
         updateColorInputs('disable-bg-font', settings.disableBgFontColor);
     }
 
-    if (settings.countdownTextColor) {
-        document.documentElement.style.setProperty('--otk-countdown-text-color', settings.countdownTextColor);
-        updateColorInputs('countdown-text', settings.countdownTextColor);
+    if (settings.countdownLabelTextColor) {
+        document.documentElement.style.setProperty('--otk-countdown-label-text-color', settings.countdownLabelTextColor);
+        updateColorInputs('countdown-label-text', settings.countdownLabelTextColor);
+    }
+
+    if (settings.countdownTimerTextColor) {
+        document.documentElement.style.setProperty('--otk-countdown-timer-text-color', settings.countdownTimerTextColor);
+        updateColorInputs('countdown-timer-text', settings.countdownTimerTextColor);
     }
 
     // New Messages Divider Color
@@ -5346,6 +5507,20 @@ function applyThemeSettings() {
     if (settings.blurIconBgColor) {
         document.documentElement.style.setProperty('--otk-blur-icon-bg-color', settings.blurIconBgColor);
         updateColorInputs('blur-icon-bg', settings.blurIconBgColor);
+    }
+
+    // Clock Colors
+    if (settings.clockBgColor) {
+        document.documentElement.style.setProperty('--otk-clock-bg-color', settings.clockBgColor);
+        updateColorInputs('clock-bg', settings.clockBgColor);
+    }
+    if (settings.clockTextColor) {
+        document.documentElement.style.setProperty('--otk-clock-text-color', settings.clockTextColor);
+        updateColorInputs('clock-text', settings.clockTextColor);
+    }
+    if (settings.clockBorderColor) {
+        document.documentElement.style.setProperty('--otk-clock-border-color', settings.clockBorderColor);
+        updateColorInputs('clock-border', settings.clockBorderColor);
     }
 
     // GUI Button Colors
@@ -5630,7 +5805,7 @@ function setupOptionsWindow() {
     suspendGroup.style.cssText = "display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 5px;";
 
     const suspendLabel = document.createElement('label');
-    suspendLabel.textContent = "Suspend updates after (minutes):";
+    suspendLabel.textContent = "Suspend after inactivity:";
     suspendLabel.htmlFor = 'otk-suspend-after-inactive-select';
     suspendLabel.style.cssText = "font-size: 12px; text-align: left; flex-basis: 230px; flex-shrink: 0;";
 
@@ -5727,6 +5902,81 @@ function setupOptionsWindow() {
     memoryReportGroup.appendChild(memoryReportLabel);
     memoryReportGroup.appendChild(memoryReportControlsWrapper);
     generalSettingsSection.appendChild(memoryReportGroup);
+
+    // --- Disable Background Updates Option ---
+    const bgUpdateGroup = document.createElement('div');
+    bgUpdateGroup.style.cssText = "display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 5px;";
+
+    const bgUpdateLabel = document.createElement('label');
+    bgUpdateLabel.textContent = "Disable Background Updates:";
+    bgUpdateLabel.htmlFor = 'otk-disable-bg-update-checkbox';
+    bgUpdateLabel.style.cssText = "font-size: 12px; text-align: left; flex-basis: 230px; flex-shrink: 0;";
+
+    const bgUpdateControlsWrapper = document.createElement('div');
+    bgUpdateControlsWrapper.style.cssText = "display: flex; flex-grow: 1; align-items: center; gap: 8px; min-width: 0; justify-content: flex-end;";
+
+    const bgUpdateCheckbox = document.createElement('input');
+    bgUpdateCheckbox.type = 'checkbox';
+    bgUpdateCheckbox.id = 'otk-disable-bg-update-checkbox';
+    bgUpdateCheckbox.style.cssText = "height: 16px; width: 16px;";
+    bgUpdateCheckbox.checked = localStorage.getItem(BACKGROUND_UPDATES_DISABLED_KEY) === 'true';
+
+    bgUpdateCheckbox.addEventListener('change', () => {
+        if (bgUpdateCheckbox.checked) {
+            stopBackgroundRefresh();
+            if (countdownIntervalId) {
+                clearInterval(countdownIntervalId);
+                countdownIntervalId = null;
+            }
+            const countdownTimer = document.getElementById('otk-countdown-timer');
+            if (countdownTimer) {
+                countdownTimer.textContent = 'n/a';
+            }
+            localStorage.setItem(BACKGROUND_UPDATES_DISABLED_KEY, 'true');
+            consoleLog('Background updates disabled via checkbox.');
+        } else {
+            localStorage.setItem(BACKGROUND_UPDATES_DISABLED_KEY, 'false');
+            startBackgroundRefresh(true); // Start immediately
+            consoleLog('Background updates enabled via checkbox.');
+        }
+    });
+
+    bgUpdateControlsWrapper.appendChild(bgUpdateCheckbox);
+    bgUpdateGroup.appendChild(bgUpdateLabel);
+    bgUpdateGroup.appendChild(bgUpdateControlsWrapper);
+    generalSettingsSection.appendChild(bgUpdateGroup);
+
+    // --- Clock Toggle Option ---
+    const clockToggleGroup = document.createElement('div');
+    clockToggleGroup.style.cssText = "display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 5px;";
+
+    const clockToggleLabel = document.createElement('label');
+    clockToggleLabel.textContent = "Enable Clock:";
+    clockToggleLabel.htmlFor = 'otk-clock-toggle-checkbox';
+    clockToggleLabel.style.cssText = "font-size: 12px; text-align: left; flex-basis: 230px; flex-shrink: 0;";
+
+    const clockToggleControlsWrapper = document.createElement('div');
+    clockToggleControlsWrapper.style.cssText = "display: flex; flex-grow: 1; align-items: center; gap: 8px; min-width: 0; justify-content: flex-end;";
+
+    const clockToggleCheckbox = document.createElement('input');
+    clockToggleCheckbox.type = 'checkbox';
+    clockToggleCheckbox.id = 'otk-clock-toggle-checkbox';
+    clockToggleCheckbox.style.cssText = "height: 16px; width: 16px;";
+    clockToggleCheckbox.checked = localStorage.getItem('otkClockEnabled') === 'true';
+
+    clockToggleCheckbox.addEventListener('change', () => {
+        const isEnabled = clockToggleCheckbox.checked;
+        localStorage.setItem('otkClockEnabled', isEnabled);
+        const clockElement = document.getElementById('otk-clock');
+        if (clockElement) {
+            clockElement.style.display = isEnabled ? 'block' : 'none';
+        }
+    });
+
+    clockToggleControlsWrapper.appendChild(clockToggleCheckbox);
+    clockToggleGroup.appendChild(clockToggleLabel);
+    clockToggleGroup.appendChild(clockToggleControlsWrapper);
+    generalSettingsSection.appendChild(clockToggleGroup);
 
 
     // --- Theme/Appearance Section ---
@@ -6099,9 +6349,12 @@ function setupOptionsWindow() {
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Stats Text:", storageKey: 'actualStatsTextColor', cssVariable: '--otk-stats-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'actual-stats-text' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background Updates Stats Text:", storageKey: 'backgroundUpdatesStatsTextColor', cssVariable: '--otk-background-updates-stats-text-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'background-updates-stats-text' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Cog Icon:", storageKey: 'cogIconColor', cssVariable: '--otk-cog-icon-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'cog-icon' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Disable Background Update Text:", storageKey: 'disableBgFontColor', cssVariable: '--otk-disable-bg-font-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'disable-bg-font' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Countdown Timer Text:", storageKey: 'countdownTextColor', cssVariable: '--otk-countdown-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-text' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Countdown Label Text:", storageKey: 'countdownLabelTextColor', cssVariable: '--otk-countdown-label-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-label-text' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Countdown Timer Text:", storageKey: 'countdownTimerTextColor', cssVariable: '--otk-countdown-timer-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-timer-text' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Separator:", storageKey: 'separatorColor', cssVariable: '--otk-separator-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'separator' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Background:", storageKey: 'clockBgColor', cssVariable: '--otk-clock-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'clock-bg' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Text:", storageKey: 'clockTextColor', cssVariable: '--otk-clock-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'clock-text' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Clock Border:", storageKey: 'clockBorderColor', cssVariable: '--otk-clock-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'clock-border' }));
 
     // Sub-section for GUI Buttons
     const guiButtonsSubHeading = document.createElement('h6');
@@ -6192,8 +6445,8 @@ function setupOptionsWindow() {
 
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Background:", storageKey: 'viewerBgColor', cssVariable: '--otk-viewer-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'viewer-bg' }));
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "GUI Bottom Border:", storageKey: 'guiBottomBorderColor', cssVariable: '--otk-gui-bottom-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'gui-bottom-border' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "New Messages Divider:", storageKey: 'newMessagesDividerColor', cssVariable: '--otk-new-messages-divider-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'new-msg-divider' }));
-    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "New Messages Text:", storageKey: 'newMessagesFontColor', cssVariable: '--otk-new-messages-font-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'new-msg-font' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "New Messages Divider:", storageKey: 'newMessagesDividerColor', cssVariable: '--otk-new-messages-divider-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'new-msg-divider' }));
+    themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "New Messages Text:", storageKey: 'newMessagesFontColor', cssVariable: '--otk-new-messages-font-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'new-msg-font' }));
 
     // Anchor Highlight Colors
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Anchor Highlight Background:", storageKey: 'anchorHighlightBgColor', cssVariable: '--otk-anchor-highlight-bg-color', defaultValue: '#4a4a3a', inputType: 'color', idSuffix: 'anchor-bg', requiresRerender: true }));
@@ -6471,7 +6724,6 @@ function setupOptionsWindow() {
     optionsPanelSectionHeading.style.marginBottom = "18px"; // Increased bottom margin
     themeOptionsContainer.appendChild(optionsPanelSectionHeading);
     themeOptionsContainer.appendChild(createThemeOptionRow({ labelText: "Panel Text:", storageKey: 'optionsTextColor', cssVariable: '--otk-options-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'options-text' }));
-    // themeOptionsContainer.appendChild(createDivider()); // Removed divider
 
     // --- Loading Screen Sub-Section (within Theme) ---
     const loadingScreenSubHeading = document.createElement('h6');
@@ -6777,11 +7029,12 @@ function setupOptionsWindow() {
             { storageKey: 'viewerQuote2plusHeaderBorderColor', cssVariable: '--otk-viewer-quote2plus-header-border-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-quote2plus-border' },
             { storageKey: 'cogIconColor', cssVariable: '--otk-cog-icon-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'cog-icon' },
             { storageKey: 'disableBgFontColor', cssVariable: '--otk-disable-bg-font-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'disable-bg-font' },
-            { storageKey: 'countdownTextColor', cssVariable: '--otk-countdown-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-text' },
+            { storageKey: 'countdownLabelTextColor', cssVariable: '--otk-countdown-label-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-label-text' },
+            { storageKey: 'countdownTimerTextColor', cssVariable: '--otk-countdown-timer-text-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'countdown-timer-text' },
             { storageKey: 'separatorColor', cssVariable: '--otk-separator-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'separator' },
             { storageKey: 'optionsTextColor', cssVariable: '--otk-options-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'options-text' },
-            { storageKey: 'newMessagesDividerColor', cssVariable: '--otk-new-messages-divider-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'new-msg-divider' },
-            { storageKey: 'newMessagesFontColor', cssVariable: '--otk-new-messages-font-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'new-msg-font' },
+            { storageKey: 'newMessagesDividerColor', cssVariable: '--otk-new-messages-divider-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'new-msg-divider' },
+            { storageKey: 'newMessagesFontColor', cssVariable: '--otk-new-messages-font-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'new-msg-font' },
 
             // Anchor Highlight Colors
             { storageKey: 'anchorHighlightBgColor', cssVariable: '--otk-anchor-highlight-bg-color', defaultValue: '#ffd1a4', inputType: 'color', idSuffix: 'anchor-bg' },
@@ -6806,7 +7059,12 @@ function setupOptionsWindow() {
             { storageKey: 'loadingTextColor', cssVariable: '--otk-loading-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'loading-text' },
             { storageKey: 'loadingProgressBarBgColor', cssVariable: '--otk-loading-progress-bar-bg-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'loading-progress-bg' },
             { storageKey: 'loadingProgressBarFillColor', cssVariable: '--otk-loading-progress-bar-fill-color', defaultValue: '#4CAF50', inputType: 'color', idSuffix: 'loading-progress-fill' },
-            { storageKey: 'loadingProgressBarTextColor', cssVariable: '--otk-loading-progress-bar-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'loading-progress-text' }
+            { storageKey: 'loadingProgressBarTextColor', cssVariable: '--otk-loading-progress-bar-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'loading-progress-text' },
+
+            // Clock Colours
+            { storageKey: 'clockBgColor', cssVariable: '--otk-clock-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'clock-bg' },
+            { storageKey: 'clockTextColor', cssVariable: '--otk-clock-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'clock-text' },
+            { storageKey: 'clockBorderColor', cssVariable: '--otk-clock-border-color', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'clock-border' }
         ];
     }
 
@@ -6928,23 +7186,26 @@ function setupOptionsWindow() {
         consoleLog("Draggable window: mousedown");
     });
 
-    document.addEventListener('mousemove', (e) => {
-        if (isDragging) {
-            // Ensure optionsWindow is not moved off-screen, with some buffer
-            let newLeft = e.clientX - offsetX;
-            let newTop = e.clientY - offsetY;
+document.addEventListener('mousemove', (e) => {
+    if (isClockDragging) {
+        let newLeft = e.clientX - clockOffsetX;
+        let newTop = e.clientY - clockOffsetY;
 
-            const buffer = 10; // pixels
-            const maxLeft = window.innerWidth - optionsWindow.offsetWidth - buffer;
-            const maxTop = window.innerHeight - optionsWindow.offsetHeight - buffer;
+        /*
+        // This logic has been removed to allow unconstrained movement.
+        const buffer = 10;
+        const maxLeft = window.innerWidth - clockElement.offsetWidth - buffer;
+        const maxTop = window.innerHeight - clockElement.offsetHeight - buffer;
 
-            newLeft = Math.max(buffer, Math.min(newLeft, maxLeft));
-            newTop = Math.max(buffer, Math.min(newTop, maxTop));
+        newLeft = Math.max(buffer, Math.min(newLeft, maxLeft));
+        newTop = Math.max(buffer, Math.min(newTop, maxTop));
+        */
 
-            optionsWindow.style.left = newLeft + 'px';
-            optionsWindow.style.top = newTop + 'px';
-        }
-    });
+        clockElement.style.left = newLeft + 'px';
+        clockElement.style.top = newTop + 'px';
+        clockElement.style.right = 'auto';
+    }
+});
 
     document.addEventListener('mouseup', () => {
         if (isDragging) {
@@ -6990,6 +7251,9 @@ async function main() {
     const styleElement = document.createElement('style');
     styleElement.textContent = `
         :root {
+            --otk-clock-bg-color: #181818;
+            --otk-clock-text-color: #e6e6e6;
+            --otk-clock-border-color: #ff8040;
             --otk-gui-bg-color: #181818;
             --otk-gui-bg-color: #181818;
             --otk-gui-text-color: #e6e6e6; /* General text in the main GUI bar */
@@ -7019,10 +7283,10 @@ async function main() {
             --otk-gui-bottom-border-color: #ff8040; /* Default for GUI bottom border - remains common */
             --otk-cog-icon-color: #e6e6e6; /* Default for settings cog icon */
             --otk-disable-bg-font-color: #ff8040; /* Default for "Disable Background Updates" text */
-            --otk-countdown-text-color: #ff8040; /* Default for countdown timer text */
+            --otk-countdown-timer-text-color: #ff8040; /* Default for countdown timer text */
             --otk-viewer-quote2plus-header-border-color: #000000; /* Default for Depth 2+ message header underline - Now black */
-            --otk-new-messages-divider-color: #FFD700; /* Default for new message separator line */
-            --otk-new-messages-font-color: #FFD700; /* Default for new message separator text */
+            --otk-new-messages-divider-color: #000000; /* Default for new message separator line */
+            --otk-new-messages-font-color: #000000; /* Default for new message separator text */
 
             /* New Depth-Specific Content Font Sizes */
             --otk-msg-depth0-content-font-size: 16px;
@@ -7262,6 +7526,10 @@ async function main() {
                 startBackgroundRefresh();
             } else {
                 consoleLog("Background updates are disabled by user preference.");
+                const countdownTimer = document.getElementById('otk-countdown-timer');
+                if (countdownTimer) {
+                    countdownTimer.textContent = 'n/a';
+                }
             }
 
             consoleLog("OTK Thread Tracker script initialized and running.");
@@ -7288,6 +7556,15 @@ async function main() {
             consoleWarn('[Final Check] centerInfoContainer not found for flex-grow check.');
         }
     });
+
+    if (localStorage.getItem('otkClockEnabled') === 'true') {
+        const clockElement = document.getElementById('otk-clock');
+        if (clockElement) {
+            clockElement.style.display = 'block';
+        }
+    }
+
+    setInterval(updateClock, 1000);
 
     function handleActivity() {
         if (scrollTimeout) {
